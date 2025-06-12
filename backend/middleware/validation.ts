@@ -3,52 +3,55 @@ import Joi from 'joi';
 import logger from '../config/logger';
 
 export const validate = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body);
-    
+
     if (error) {
       logger.warn('Validation error:', error.details[0].message);
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Validation error',
         details: error.details[0].message
       });
+      return;
     }
-    
+
     next();
   };
 };
 
 export const validateParams = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.params);
-    
+
     if (error) {
       logger.warn('Parameter validation error:', error.details[0].message);
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Parameter validation error',
         details: error.details[0].message
       });
+      return;
     }
-    
+
     next();
   };
 };
 
 export const validateQuery = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.query);
-    
+
     if (error) {
       logger.warn('Query validation error:', error.details[0].message);
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Query validation error',
         details: error.details[0].message
       });
+      return;
     }
-    
+
     next();
   };
 };

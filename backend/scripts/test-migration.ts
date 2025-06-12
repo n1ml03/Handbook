@@ -9,7 +9,6 @@
 import { config } from 'dotenv';
 config();
 
-import logger from '../config/logger';
 import { testConnection, initializePool } from '../config/database';
 import databaseService from '../services/DatabaseService';
 

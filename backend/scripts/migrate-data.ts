@@ -113,7 +113,7 @@ class DataMigrator {
     }
   }
 
-  private convertValue(value: any, columnName: string): any {
+  private convertValue(value: any, _columnName: string): any {
     if (value === null || value === undefined) {
       return null;
     }

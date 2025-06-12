@@ -39,7 +39,7 @@ export const conversionPatterns = {
 };
 
 // Template for converting a simple SELECT query
-export const convertSelectQuery = (originalQuery: string, params: string[]) => {
+export const convertSelectQuery = (originalQuery: string, _params: string[]) => {
   return `
   async getById(id: string): Promise<EntityType> {
     const request = getRequest();

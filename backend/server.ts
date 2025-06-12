@@ -18,9 +18,6 @@ import healthRoutes from './routes/health';
 import charactersRoutes from './routes/characters';
 import skillsRoutes from './routes/skills';
 import swimsuitsRoutes from './routes/swimsuits';
-import girlsRoutes from './routes/girls';
-import accessoriesRoutes from './routes/accessories';
-import venusBoardsRoutes from './routes/venus-boards';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -75,9 +72,6 @@ app.use('/api/health', healthRoutes);
 app.use('/api/characters', charactersRoutes);
 app.use('/api/skills', skillsRoutes);
 app.use('/api/swimsuits', swimsuitsRoutes);
-app.use('/api/girls', girlsRoutes);
-app.use('/api/accessories', accessoriesRoutes);
-app.use('/api/venus-boards', venusBoardsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

@@ -16,11 +16,8 @@ import {
   NewSwimsuit,
   NewGirl,
   NewAccessory,
-  NewVenusBoard,
-  SwimsuitWithSkills,
-  GirlWithDetails,
-  UserSetting
-} from '../../frontend/lib/db/types';
+  NewVenusBoard
+} from '../types/database';
 
 interface PaginationOptions {
   page?: number;
@@ -99,25 +96,26 @@ export class DatabaseService {
     try {
       // Get total count
       const countRequest = getRequest();
+      let total: number;
       if (params.length > 0) {
         params.forEach((param, index) => {
           countRequest.input(`param${index + 1}`, param);
         });
-        const paramPlaceholders = params.map((_, index) => `@param${index + 1}`).join(', ');
         const modifiedCountQuery = countQuery.replace(/\$\d+/g, (match) => {
           const paramIndex = parseInt(match.substring(1));
           return `@param${paramIndex}`;
         });
         const countResult = await countRequest.query(modifiedCountQuery);
-        var total = countResult.recordset[0][''] || countResult.recordset[0].count || 0;
+        total = countResult.recordset[0][''] || countResult.recordset[0].count || 0;
       } else {
         const countResult = await countRequest.query(countQuery);
-        var total = countResult.recordset[0][''] || countResult.recordset[0].count || 0;
+        total = countResult.recordset[0][''] || countResult.recordset[0].count || 0;
       }
 
       // Get paginated data
       const paginatedQuery = this.buildPaginationQuery(baseQuery, options);
       const dataRequest = getRequest();
+      let data: T[];
 
       if (params.length > 0) {
         params.forEach((param, index) => {
@@ -128,10 +126,10 @@ export class DatabaseService {
           return `@param${paramIndex}`;
         });
         const dataResult = await dataRequest.query(modifiedDataQuery);
-        var data = dataResult.recordset.map(mapFunction);
+        data = dataResult.recordset.map(mapFunction);
       } else {
         const dataResult = await dataRequest.query(paginatedQuery);
-        var data = dataResult.recordset.map(mapFunction);
+        data = dataResult.recordset.map(mapFunction);
       }
 
       const totalPages = Math.ceil(total / limit);
@@ -197,7 +195,7 @@ export class DatabaseService {
   }
 
   async updateCharacter(id: string, updates: Partial<NewCharacter>): Promise<Character> {
-    const setClause = [];
+    const setClause: string[] = [];
     const request = getRequest();
     request.input('id', sql.NVarChar(255), id);
 
@@ -288,8 +286,8 @@ export class DatabaseService {
   }
 
   async updateSkill(id: string, updates: Partial<NewSkill>): Promise<Skill> {
-    const setClause = [];
-    const values = [];
+    const setClause: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     if (updates.name !== undefined) {
@@ -386,8 +384,8 @@ export class DatabaseService {
   }
 
   async updateSwimsuit(id: string, updates: Partial<NewSwimsuit>): Promise<Swimsuit> {
-    const setClause = [];
-    const values = [];
+    const setClause: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     Object.keys(updates).forEach((key) => {
@@ -473,8 +471,8 @@ export class DatabaseService {
   }
 
   async updateGirl(id: string, updates: Partial<NewGirl>): Promise<Girl> {
-    const setClause = [];
-    const values = [];
+    const setClause: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     Object.keys(updates).forEach((key) => {
@@ -572,8 +570,8 @@ export class DatabaseService {
   }
 
   async updateAccessory(id: string, updates: Partial<NewAccessory>): Promise<Accessory> {
-    const setClause = [];
-    const values = [];
+    const setClause: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     Object.keys(updates).forEach((key) => {
@@ -665,8 +663,8 @@ export class DatabaseService {
   }
 
   async updateVenusBoard(id: number, updates: Partial<NewVenusBoard>): Promise<VenusBoard> {
-    const setClause = [];
-    const values = [];
+    const setClause: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     Object.keys(updates).forEach((key) => {
