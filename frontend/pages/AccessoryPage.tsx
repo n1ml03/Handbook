@@ -10,8 +10,6 @@ import { accessoriesDetailedData } from '@/data';
 import UnifiedFilter, { SortDirection } from '../components/UnifiedFilter';
 import { createAccessoryFilterConfig, accessorySortOptions } from '../components/FilterConfigs';
 
-type SortOption = 'name' | 'type' | 'rarity' | 'pow' | 'tec' | 'stm' | 'apl' | 'total';
-
 const accessoryTypes = ['Necklace', 'Earrings', 'Bracelet', 'Ring', 'Hair', 'Other'] as const;
 const rarities = ['SSR', 'SR', 'R', 'N'] as const;
 const versions = ['1.0', '1.5', '2.0', '2.5', '3.0'] as const;
@@ -258,16 +256,6 @@ export default function AccessoryPage() {
   const clearFilters = () => {
     setFilterValues({});
     setCurrentPage(1);
-  };
-
-  const getStatColor = (statType: string) => {
-    switch (statType) {
-      case 'pow': return 'text-red-400';
-      case 'tec': return 'text-cyan-400';
-      case 'stm': return 'text-yellow-400';
-      case 'apl': return 'text-purple-400';
-      default: return 'text-gray-400';
-    }
   };
 
   return (

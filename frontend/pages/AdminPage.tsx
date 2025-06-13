@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Settings,
   FileText,
@@ -15,7 +15,7 @@ import {
   FileUp,
   X,
   Eye,
-  Maximize2,
+
   CheckCircle2,
   AlertCircle,
   Settings2,
@@ -145,7 +145,20 @@ const AdminPage: React.FC = () => {
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFloatingToolbar, setShowFloatingToolbar] = useState(false);
+
+  // Enhanced tags functionality
+  const [tagInput, setTagInput] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [selectedTagIndex, setSelectedTagIndex] = useState(-1);
+
+  // Common tag suggestions
+  const commonTags = [
+    'tutorial', 'guide', 'beginner', 'advanced', 'tips', 'tricks',
+    'documentation', 'reference', 'api', 'examples', 'best-practices',
+    'troubleshooting', 'faq', 'getting-started', 'configuration',
+    'installation', 'deployment', 'security', 'performance', 'optimization'
+  ];
 
   // New enhanced CSV states
   const [csvPreview, setCsvPreview] = useState<CSVPreviewData | null>(null);
@@ -221,6 +234,58 @@ const AdminPage: React.FC = () => {
     { csvColumn: '', dbField: 'tags', isRequired: false, dataType: 'array' },
     { csvColumn: '', dbField: 'isPublished', isRequired: false, dataType: 'boolean' }
   ];
+
+  // Enhanced tags functionality helpers
+  const getFilteredTagSuggestions = useCallback((input: string) => {
+    if (!input.trim()) return [];
+    const inputLower = input.toLowerCase();
+    return commonTags
+      .filter(tag =>
+        tag.toLowerCase().includes(inputLower) &&
+        !editingDocument?.tags.includes(tag)
+      )
+      .slice(0, 8);
+  }, [commonTags, editingDocument?.tags]);
+
+  const addTag = useCallback((tag: string) => {
+    if (!editingDocument) return;
+    const trimmedTag = tag.trim().toLowerCase();
+    if (trimmedTag && !editingDocument.tags.includes(trimmedTag)) {
+      setEditingDocument({
+        ...editingDocument,
+        tags: [...editingDocument.tags, trimmedTag]
+      });
+    }
+    setTagInput('');
+    setShowTagSuggestions(false);
+    setSelectedTagIndex(-1);
+  }, [editingDocument]);
+
+  const removeTag = useCallback((tagToRemove: string) => {
+    if (!editingDocument) return;
+    setEditingDocument({
+      ...editingDocument,
+      tags: editingDocument.tags.filter(tag => tag !== tagToRemove)
+    });
+  }, [editingDocument]);
+
+  // Floating toolbar functionality
+  const editorRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!editorRef.current || !isEditMode) return;
+
+      const editorRect = editorRef.current.getBoundingClientRect();
+      const isEditorVisible = editorRect.top < window.innerHeight && editorRect.bottom > 0;
+
+      setShowFloatingToolbar(isEditorVisible && editorRect.top < 100);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isEditMode]);
 
   // Initialize site content (removed unused state)
 
@@ -500,7 +565,7 @@ const AdminPage: React.FC = () => {
       </div>
       <button
         onClick={() => removeNotification(notification.id)}
-        className="flex-shrink-0 p-1 rounded-md hover:bg-muted/50 transition-colors"
+        className="flex-shrink-0 p-1 rounded-md bg-muted/20 transition-colors duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none"
         aria-label="Dismiss notification"
       >
         <X className="w-4 h-4 text-muted-foreground" />
@@ -529,7 +594,8 @@ const AdminPage: React.FC = () => {
             </div>
             <button
               onClick={() => setShowPreviewModal(false)}
-              className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
+              className="p-2 rounded-lg bg-muted/20 transition-colors duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none"
+              aria-label="Close preview modal"
             >
               <X className="w-5 h-5" />
             </button>
@@ -598,8 +664,8 @@ const AdminPage: React.FC = () => {
                     </thead>
                     <tbody>
                       {csvPreview.rows.slice(0, 10).map((row, rowIndex) => (
-                        <tr key={rowIndex} className="border-t border-border hover:bg-muted/25">
-                          <td className="px-3 py-2 text-muted-foreground">{rowIndex + 1}</td>
+                        <tr key={rowIndex} className="border-t border-border">
+                          <td className="px-3 py-2 text-muted-foreground font-medium">{rowIndex + 1}</td>
                           {row.map((cell, cellIndex) => (
                             <td key={cellIndex} className="px-3 py-2 max-w-xs truncate">
                               {cell || <span className="text-muted-foreground italic">empty</span>}
@@ -1363,8 +1429,8 @@ const AdminPage: React.FC = () => {
                 className={cn(
                   "border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300",
                   isDragging
-                    ? 'border-accent-cyan bg-accent-cyan/5 scale-[1.02] shadow-lg'
-                    : 'border-border hover:border-accent-cyan/50 hover:bg-accent-cyan/2'
+                    ? 'border-accent-cyan bg-accent-cyan/10 scale-[1.01] shadow-lg'
+                    : 'border-border bg-muted/10'
                 )}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -1386,8 +1452,8 @@ const AdminPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="csvFileInput" className="cursor-pointer">
-                      <span className="text-accent-cyan hover:text-accent-cyan/80 font-semibold text-lg">
+                    <label htmlFor="csvFileInput" className="cursor-pointer focus-within:outline-none">
+                      <span className="text-accent-cyan font-semibold text-lg transition-colors duration-200">
                         Choose CSV file
                       </span>
                       <span className="text-muted-foreground"> or drag and drop here</span>
@@ -1421,8 +1487,9 @@ const AdminPage: React.FC = () => {
                           const fileInput = document.getElementById('csvFileInput') as HTMLInputElement;
                           if (fileInput) fileInput.value = '';
                         }}
-                        className="text-red-500 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                        className="text-red-500 p-2 rounded-lg bg-red-50 transition-colors duration-200 focus:ring-2 focus:ring-red-100 focus:outline-none"
                         title="Remove file"
+                        aria-label="Remove uploaded file"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1723,7 +1790,7 @@ const AdminPage: React.FC = () => {
                         }
                       }
                     }}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 border-red-200 focus:ring-2 focus:ring-red-100 focus:outline-none transition-colors duration-200"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -1762,10 +1829,7 @@ const AdminPage: React.FC = () => {
       </div>
 
       {isEditMode && editingDocument ? (
-        <div className={cn(
-          "doax-card transition-all duration-300",
-          isFullscreen ? "fixed inset-4 z-50 overflow-auto" : "relative"
-        )}>
+        <div className="doax-card transition-all duration-300 relative">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold">
@@ -1785,61 +1849,48 @@ const AdminPage: React.FC = () => {
                   <Eye className="w-4 h-4 mr-2" />
                   {isPreviewMode ? 'Edit' : 'Preview'}
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsFullscreen(!isFullscreen)}
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </Button>
-
-                {isFullscreen && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsFullscreen(false)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
               </div>
             </div>
 
             {/* Vertical Stack Layout */}
             <div className="space-y-6">
               {/* Document Metadata Section - Top */}
-              <div className="bg-muted/20 border border-border/50 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-foreground">
-                    Document Information
-                  </h4>
-                  <div className="text-xs text-muted-foreground">
-                    Configure document metadata and settings
+              <div className="bg-gradient-to-br from-muted/30 to-muted/10 border-2 border-border/30 rounded-2xl p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                  <div>
+                    <h4 className="text-xl font-bold text-foreground flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-accent-cyan" />
+                      Document Settings
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Configure your document's basic information and publication settings
+                    </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {/* Title - Takes full width on mobile, 2 cols on larger screens */}
+                <div className="space-y-6">
+                  {/* Title - Full width for better visibility */}
                   <FormGroup
-                    label="Title"
+                    label="Document Title"
+                    description="Choose a clear, descriptive title for your document"
                     required
-                    className="sm:col-span-2 lg:col-span-2 xl:col-span-2"
                   >
                     <Input
                       value={editingDocument.title}
                       onChange={(e) => setEditingDocument({ ...editingDocument, title: e.target.value })}
-                      placeholder="Enter document title..."
-                      className="transition-all focus:ring-2 focus:ring-accent-cyan/20 focus:border-accent-cyan"
+                      placeholder="Enter a clear, descriptive title for your document..."
+                      className="text-lg font-medium h-12 px-4 border-2 border-border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:border-accent-cyan focus:outline-none"
                     />
                   </FormGroup>
 
-                  {/* Category */}
-                  <FormGroup label="Category" required>
+                  {/* Category and Status in a responsive grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Category */}
+                    <FormGroup label="Category" required>
                     <select
                       value={editingDocument.category}
                       onChange={(e) => setEditingDocument({ ...editingDocument, category: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg bg-background transition-all focus:ring-2 focus:ring-accent-cyan/20 focus:border-accent-cyan hover:border-accent-cyan/50"
+                      className="w-full px-4 py-3 border-2 border-border rounded-xl bg-background transition-all duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:border-accent-cyan focus:outline-none text-sm font-medium"
                     >
                       {documentCategories.map(category => (
                         <option key={category.id} value={category.id}>
@@ -1850,170 +1901,301 @@ const AdminPage: React.FC = () => {
                   </FormGroup>
 
                   {/* Status */}
-                  <FormGroup label="Status" className="lg:col-span-1">
-                    <div className="flex items-center gap-3 p-3 bg-background border border-border rounded-lg hover:border-accent-cyan/50 transition-colors">
-                      <input
-                        type="checkbox"
-                        id="admin-published"
-                        checked={editingDocument.isPublished}
-                        onChange={(e) => setEditingDocument({ ...editingDocument, isPublished: e.target.checked })}
-                        className="rounded transition-colors focus:ring-2 focus:ring-accent-cyan/20"
-                      />
-                      <label htmlFor="admin-published" className="text-sm font-medium flex-1">
-                        Published
-                      </label>
-                      {editingDocument.isPublished && (
-                        <StatusBadge status="success" className="text-xs">
-                          Live
-                        </StatusBadge>
-                      )}
-                    </div>
-                  </FormGroup>
-
-                  {/* Tags - Full width */}
-                  <FormGroup
-                    label="Tags"
-                    description="Separate multiple tags with commas (e.g., tutorial, guide, beginner)"
-                    className="sm:col-span-2 lg:col-span-3 xl:col-span-4"
-                  >
-                    <Input
-                      value={editingDocument.tags.join(', ')}
-                      onChange={(e) => setEditingDocument({
-                        ...editingDocument,
-                        tags: e.target.value.split(',').map(tag => tag.trim()).filter(Boolean)
-                      })}
-                      placeholder="tutorial, guide, beginner, advanced..."
-                      className="transition-all focus:ring-2 focus:ring-accent-cyan/20 focus:border-accent-cyan"
-                    />
-                    {/* Tag preview */}
-                    {editingDocument.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {editingDocument.tags.slice(0, 8).map((tag, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                        {editingDocument.tags.length > 8 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{editingDocument.tags.length - 8} more
-                          </Badge>
+                  <FormGroup label="Publication Status" className="lg:col-span-1">
+                    <div className="flex items-center gap-4 p-4 bg-muted/30 border-2 border-border rounded-xl transition-all duration-200 focus-within:border-accent-cyan/50">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="admin-published"
+                          checked={editingDocument.isPublished}
+                          onChange={(e) => setEditingDocument({ ...editingDocument, isPublished: e.target.checked })}
+                          className="w-5 h-5 rounded-md border-2 border-border transition-all duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none checked:bg-accent-cyan checked:border-accent-cyan"
+                        />
+                        <label htmlFor="admin-published" className="text-sm font-semibold text-foreground cursor-pointer">
+                          Publish Document
+                        </label>
+                      </div>
+                      <div className="flex-1 flex justify-end">
+                        {editingDocument.isPublished ? (
+                          <StatusBadge status="success" className="text-xs font-medium">
+                            Published
+                          </StatusBadge>
+                        ) : (
+                          <StatusBadge status="warning" className="text-xs font-medium">
+                            Draft
+                          </StatusBadge>
                         )}
                       </div>
-                    )}
+                    </div>
+                  </FormGroup>
+                  </div>
+
+                  {/* Enhanced Tags Input */}
+                  <FormGroup
+                    label="Tags"
+                    description="Add tags to help categorize and organize your document"
+                  >
+                    <div className="space-y-3">
+                      {/* Current Tags Display */}
+                      {editingDocument.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {editingDocument.tags.map((tag, index) => (
+                            <div
+                              key={index}
+                              className="inline-flex items-center gap-1 bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan px-3 py-1 rounded-full text-sm font-medium"
+                            >
+                              <span>{tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeTag(tag)}
+                                className="ml-1 p-0.5 rounded-full transition-colors duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none"
+                                aria-label={`Remove ${tag} tag`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Tag Input with Suggestions */}
+                      <div className="relative">
+                        <Input
+                          value={tagInput}
+                          onChange={(e) => {
+                            setTagInput(e.target.value);
+                            setShowTagSuggestions(e.target.value.length > 0);
+                            setSelectedTagIndex(-1);
+                          }}
+                          onKeyDown={(e) => {
+                            const suggestions = getFilteredTagSuggestions(tagInput);
+
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (selectedTagIndex >= 0 && suggestions[selectedTagIndex]) {
+                                addTag(suggestions[selectedTagIndex]);
+                              } else if (tagInput.trim()) {
+                                addTag(tagInput);
+                              }
+                            } else if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setSelectedTagIndex(prev =>
+                                prev < suggestions.length - 1 ? prev + 1 : 0
+                              );
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setSelectedTagIndex(prev =>
+                                prev > 0 ? prev - 1 : suggestions.length - 1
+                              );
+                            } else if (e.key === 'Escape') {
+                              setShowTagSuggestions(false);
+                              setSelectedTagIndex(-1);
+                            }
+                          }}
+                          onBlur={() => {
+                            // Delay hiding suggestions to allow clicking
+                            setTimeout(() => {
+                              setShowTagSuggestions(false);
+                              setSelectedTagIndex(-1);
+                            }, 200);
+                          }}
+                          placeholder="Type to add tags... (e.g., tutorial, guide, beginner)"
+                          className="h-11 px-4 border-2 border-border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:border-accent-cyan focus:outline-none"
+                        />
+
+                        {/* Tag Suggestions Dropdown */}
+                        {showTagSuggestions && tagInput.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-background border-2 border-border rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                            {getFilteredTagSuggestions(tagInput).map((suggestion, index) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => addTag(suggestion)}
+                                className={cn(
+                                  "w-full px-4 py-2 text-left text-sm transition-colors duration-200 first:rounded-t-xl last:rounded-b-xl",
+                                  index === selectedTagIndex
+                                    ? "bg-accent-cyan/20 text-accent-cyan"
+                                    : "text-foreground"
+                                )}
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                            {getFilteredTagSuggestions(tagInput).length === 0 && (
+                              <div className="px-4 py-2 text-sm text-muted-foreground">
+                                No suggestions found. Press Enter to add "{tagInput}" as a new tag.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Quick Tag Suggestions */}
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs text-muted-foreground font-medium py-1">Quick add:</span>
+                        {commonTags
+                          .filter(tag => !editingDocument.tags.includes(tag))
+                          .slice(0, 6)
+                          .map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => addTag(tag)}
+                              className="text-xs bg-muted/50 border border-border px-2 py-1 rounded-md transition-colors duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none"
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
                   </FormGroup>
                 </div>
               </div>
 
               {/* Content Editor Section - Bottom (Full Width) */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <h4 className="text-lg font-semibold text-foreground">
+              <div className="space-y-6" ref={editorRef}>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1">
+                    <h4 className="text-xl font-bold text-foreground flex items-center gap-2">
+                      <Edit3 className="w-5 h-5 text-accent-purple" />
                       Document Content
                     </h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Rich text editor with live preview and formatting tools
+                    <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                      Create rich, formatted content using our advanced text editor.
+                      The floating toolbar will appear when you scroll for quick access to editing tools.
                     </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span>Auto-save enabled</span>
-                    </div>
-                    {!isFullscreen && (
-                      <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
-                        Tip: Use fullscreen for distraction-free editing
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 <div className={cn(
-                  "border border-border rounded-xl overflow-hidden shadow-sm",
-                  "transition-all duration-200 hover:shadow-md hover:border-accent-cyan/30",
-                  "bg-gradient-to-br from-background to-background/95",
-                  isFullscreen && "min-h-[calc(100vh-200px)]"
+                  "border-2 border-border rounded-2xl overflow-hidden",
+                  "bg-background shadow-sm",
+                  "focus-within:border-accent-cyan/50 focus-within:shadow-md",
+                  "transition-all duration-300 ease-out"
                 )}>
                   <TiptapEditor
                     content={editingDocument.content}
                     onChange={(content) => setEditingDocument({ ...editingDocument, content })}
                     editable={!isPreviewMode}
-                    placeholder="Start writing your document content... Use the toolbar above for rich formatting options including headings, lists, links, and more."
+                    placeholder="Start writing your document content... Use the rich text editor to format your content with headings, lists, links, and more."
                     showToolbar={!isPreviewMode}
                     showCharacterCount={true}
                     showWordCount={true}
                     mode="full"
                     className={cn(
-                      "border-0",
+                      "border-0 bg-transparent",
                       // Responsive heights optimized for different screen sizes
-                      isFullscreen
-                        ? "min-h-[calc(100vh-250px)]"
-                        : cn(
-                            // Mobile: smaller height to fit screen
-                            "min-h-[400px]",
-                            // Tablet: medium height
-                            "sm:min-h-[500px]",
-                            // Desktop: larger height for better content visibility
-                            "lg:min-h-[600px]",
-                            // Large desktop: maximum height for optimal editing
-                            "xl:min-h-[700px]",
-                            // Ultra-wide: even more height
-                            "2xl:min-h-[800px]"
-                          )
+                      "min-h-[450px]",
+                      // Tablet: comfortable height for tablet use
+                      "sm:min-h-[550px]",
+                      // Desktop: spacious height for desktop editing
+                      "lg:min-h-[650px]",
+                      // Large desktop: maximum comfort for extended editing
+                      "xl:min-h-[750px]",
+                      // Ultra-wide: optimal height for large screens
+                      "2xl:min-h-[850px]"
                     )}
                   />
                 </div>
 
-                {/* Editor Stats and Tips */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-4">
-                    <span>
-                      Content length: {editingDocument.content.length} characters
-                    </span>
-                    <span>
-                      Estimated reading time: {Math.max(1, Math.ceil(editingDocument.content.split(' ').length / 200))} min
-                    </span>
+                {/* Floating Toolbar */}
+                {showFloatingToolbar && !isPreviewMode && (
+                  <div
+                    ref={toolbarRef}
+                    className="fixed top-4 right-4 z-50 bg-background/95 backdrop-blur-sm border-2 border-border rounded-xl shadow-xl p-3 transition-all duration-300 ease-out"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-accent-cyan rounded-full animate-pulse"></div>
+                        <span className="text-xs font-medium text-muted-foreground">Quick Actions</span>
+                      </div>
+                      <div className="w-px h-4 bg-border"></div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsPreviewMode(true)}
+                          className="h-8 px-2 text-xs"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          Preview
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveDocument(editingDocument)}
+                          className="h-8 px-2 text-xs bg-gradient-to-r from-accent-cyan to-accent-purple text-white"
+                        >
+                          <Save className="w-3 h-3 mr-1" />
+                          Save
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span>Last edited: just now</span>
-                    <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
-                    <span>Auto-saved</span>
+                )}
+
+                {/* Editor Stats and Tips */}
+                <div className="bg-muted/20 border border-border/50 rounded-xl p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="w-2 h-2 bg-accent-cyan rounded-full"></div>
+                        <span className="font-medium">
+                          {editingDocument.content.length} characters
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="w-2 h-2 bg-accent-purple rounded-full"></div>
+                        <span className="font-medium">
+                          ~{Math.max(1, Math.ceil(editingDocument.content.split(' ').length / 200))} min read
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>Last edited: just now</span>
+                      <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                      <span className="text-muted-foreground font-medium">Manual save required</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8 pt-6 border-t border-border bg-muted/10 -mx-6 px-6 py-4 rounded-b-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-                <div>
-                  {editingDocument.id ? (
-                    <span>Last saved: {editingDocument.updatedAt}</span>
-                  ) : (
-                    <span>New document - not saved yet</span>
-                  )}
+            <div className="bg-gradient-to-r from-muted/20 to-muted/10 border-t-2 border-border/30 -mx-6 px-8 py-6 mt-8 rounded-b-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 bg-accent-cyan rounded-full"></div>
+                    <span className="text-muted-foreground">
+                      {editingDocument.id ? (
+                        <>Last saved: <span className="font-medium text-foreground">{editingDocument.updatedAt}</span></>
+                      ) : (
+                        <span className="text-yellow-600 font-medium">New document - not saved yet</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-1 bg-muted-foreground rounded-full hidden sm:block"></div>
+                    <span className="text-sm text-muted-foreground">Status:</span>
+                    {editingDocument.isPublished ? (
+                      <StatusBadge status="success" className="text-xs font-medium">
+                        Published & Live
+                      </StatusBadge>
+                    ) : (
+                      <StatusBadge status="warning" className="text-xs font-medium">
+                        Draft
+                      </StatusBadge>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-muted-foreground rounded-full hidden sm:block"></div>
-                  <span>
-                    {editingDocument.isPublished ? 'Published' : 'Draft'}
-                  </span>
-                  {editingDocument.isPublished && (
-                    <StatusBadge status="success" className="text-xs">
-                      Live
-                    </StatusBadge>
-                  )}
-                </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setEditingDocument(null);
                     setIsEditMode(false);
                     setIsPreviewMode(false);
-                    setIsFullscreen(false);
                   }}
                   className="order-2 sm:order-1"
                 >
@@ -2039,11 +2221,12 @@ const AdminPage: React.FC = () => {
 
                 <Button
                   onClick={() => handleSaveDocument(editingDocument)}
-                  className="bg-gradient-to-r from-accent-cyan to-accent-purple hover:shadow-lg transition-all order-1 sm:order-3"
+                  className="bg-gradient-to-r from-accent-cyan to-accent-purple text-white font-semibold shadow-md transition-all duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none order-1 sm:order-3"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {editingDocument.id ? 'Save Changes' : 'Create Document'}
                 </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -2100,7 +2283,7 @@ const AdminPage: React.FC = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDeleteDocument(document.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 border-red-200 focus:ring-2 focus:ring-red-100 focus:outline-none transition-colors duration-200"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -2182,10 +2365,10 @@ const AdminPage: React.FC = () => {
                 onClick={() => setActiveTab(section.id)}
                 className={cn(
                   'flex-1 px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium min-w-0',
-                  'hover:scale-105 hover:shadow-md',
+                  'focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none',
                   activeTab === section.id
                     ? 'bg-gradient-to-r from-accent-pink to-accent-purple text-white shadow-lg'
-                    : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                    : 'bg-muted/50 text-muted-foreground'
                 )}
               >
                 <IconComponent className="w-4 h-4" />

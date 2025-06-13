@@ -1,25 +1,19 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
-import { 
-  ChevronLeft, 
+import { motion } from 'framer-motion';
+import {
+  ChevronLeft,
   ChevronRight,
-  Search, 
-  SortAsc,
-  Image, 
+  Image,
   Palette,
-  Filter,
-  RefreshCw
+  Search
 } from 'lucide-react';
 import { bromidesData } from '@/data';
+import { UnifiedFilter, SortDirection } from '@/components/UnifiedFilter';
+import { createDecorBromideFilterConfig, bromideSortOptions } from '@/components/FilterConfigs';
 
 const bromideTypes = ['Character', 'Scene', 'Event', 'Special'] as const;
-const rarities = ['SSR', 'SR', 'R', 'N'] as const;
 const decorationTypes = ['Frame', 'Background', 'Sticker', 'Effect'] as const;
 const versions = ['1.0', '1.5', '2.0', '2.5', '3.0'] as const;
-
-type SortDirection = 'asc' | 'desc';
-type SortOption = 'name' | 'type' | 'rarity' | 'id';
 
 interface BromideCardProps {
   bromide: any;
@@ -28,6 +22,7 @@ interface BromideCardProps {
 function BromideCard({ bromide }: BromideCardProps) {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
+      case 'UR': return 'from-red-400 to-pink-600';
       case 'SSR': return 'from-yellow-400 to-orange-500';
       case 'SR': return 'from-purple-400 to-pink-500';
       case 'R': return 'from-blue-400 to-cyan-500';
@@ -86,30 +81,30 @@ function BromideCard({ bromide }: BromideCardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h3 className="font-bold text-white text-lg mb-2">{bromide.name}</h3>
-              <p className="text-sm text-gray-400 leading-relaxed">{bromide.description}</p>
-            </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <h3 className="font-bold text-white text-lg mb-2">{bromide.name}</h3>
+            <p className="text-sm text-gray-400 leading-relaxed">{bromide.description}</p>
           </div>
 
           {/* Effects */}
           {bromide.effects && bromide.effects.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs font-bold text-accent-cyan mb-2 flex items-center">
+            <div>
+              <p className="text-xs font-bold text-accent-cyan mb-3 flex items-center">
                 <Palette className="w-3 h-3 mr-1" />
                 Effects
               </p>
               <div className="space-y-2">
                 {bromide.effects.map((effect: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-2 bg-dark-primary/30 rounded-lg border border-dark-border/30">
-                    <span className="text-xs text-gray-300">{effect.description}</span>
-                    {effect.value && (
-                      <span className="text-xs font-bold text-accent-cyan">
-                        +{effect.value}{effect.type === 'percentage' ? '%' : ''}
-                      </span>
-                    )}
+                  <div key={index} className="p-3 bg-dark-primary/30 rounded-lg border border-dark-border/30">
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-xs text-gray-300 leading-relaxed">{effect.description}</span>
+                      {effect.value && (
+                        <span className="text-xs font-bold text-accent-cyan">
+                          +{effect.value}{effect.type === 'percentage' ? '%' : ''}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -118,8 +113,8 @@ function BromideCard({ bromide }: BromideCardProps) {
 
           {/* Character Associated */}
           {bromide.character && (
-            <div className="mb-4 p-3 bg-gradient-to-r from-accent-cyan/10 to-accent-purple/10 rounded-xl border border-accent-cyan/20">
-              <p className="text-xs font-bold text-accent-gold mb-1 flex items-center">
+            <div className="p-3 bg-gradient-to-r from-accent-cyan/10 to-accent-purple/10 rounded-xl border border-accent-cyan/20">
+              <p className="text-xs font-bold text-accent-gold mb-2 flex items-center">
                 <Palette className="w-3 h-3 mr-1" />
                 Featured Character
               </p>
@@ -141,12 +136,14 @@ function BromideCard({ bromide }: BromideCardProps) {
 export default function DecorateBromidePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [sortBy, setSortBy] = useState('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [filter, setFilter] = useState({
     search: '',
     type: '',
     rarity: '',
+    character: '',
+    source: '',
     version: '',
     hasEffects: false,
     hasCharacter: false
@@ -157,21 +154,60 @@ export default function DecorateBromidePage() {
   // Sample bromide data
   const sampleBromides = useMemo(() => bromidesData, []);
 
+  // Extract unique values for filter options
+  const allTypes = useMemo(() => [...new Set([...bromideTypes, ...decorationTypes])], []);
+  const allRarities = useMemo(() => [...new Set(sampleBromides.map(b => b.rarity))].sort(), [sampleBromides]);
+  const allCharacters = useMemo(() => [...new Set(sampleBromides.map(b => b.character).filter(Boolean) as string[])].sort(), [sampleBromides]);
+  const allSources = useMemo(() => [...new Set(sampleBromides.map(b => b.source))].sort(), [sampleBromides]);
+
+  // Create filter configuration
+  const filterFields = useMemo(() =>
+    createDecorBromideFilterConfig(allTypes, allRarities, allCharacters, allSources, [...versions]),
+    [allTypes, allRarities, allCharacters, allSources]
+  );
+
   const filteredAndSortedBromides = useMemo(() => {
     let filtered = sampleBromides.filter(bromide => {
+      // Search filter - search across name, description, character, and source
+      if (filter.search) {
+        const searchTerm = filter.search.toLowerCase();
+        const searchableText = [
+          bromide.name,
+          bromide.description,
+          bromide.character,
+          bromide.source
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        if (!searchableText.includes(searchTerm)) return false;
+      }
+
+      // Type filter
       if (filter.type && bromide.type !== filter.type) return false;
+
+      // Rarity filter
       if (filter.rarity && bromide.rarity !== filter.rarity) return false;
-      if (filter.search && !bromide.name.toLowerCase().includes(filter.search.toLowerCase()) && 
-          !bromide.description.toLowerCase().includes(filter.search.toLowerCase())) return false;
+
+      // Character filter
+      if (filter.character && bromide.character !== filter.character) return false;
+
+      // Source filter
+      if (filter.source && bromide.source !== filter.source) return false;
+
+      // Effects filter
       if (filter.hasEffects && (!bromide.effects || bromide.effects.length === 0)) return false;
+
+      // Character presence filter
       if (filter.hasCharacter && !bromide.character) return false;
-      if (filter.version && !bromide.id.includes(filter.version)) return false; // Simple version check
+
+      // Version filter (check if ID contains version)
+      if (filter.version && !bromide.id.includes(filter.version)) return false;
+
       return true;
     });
 
     return filtered.sort((a, b) => {
       let aValue: any, bValue: any;
-      
+
       switch (sortBy) {
         case 'name':
           aValue = a.name.toLowerCase();
@@ -182,9 +218,17 @@ export default function DecorateBromidePage() {
           bValue = b.type.toLowerCase();
           break;
         case 'rarity':
-          const rarityOrder = { 'SSR': 4, 'SR': 3, 'R': 2, 'N': 1 };
+          const rarityOrder = { 'UR': 5, 'SSR': 4, 'SR': 3, 'R': 2, 'N': 1 };
           aValue = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
           bValue = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
+          break;
+        case 'character':
+          aValue = (a.character || '').toLowerCase();
+          bValue = (b.character || '').toLowerCase();
+          break;
+        case 'source':
+          aValue = a.source.toLowerCase();
+          bValue = b.source.toLowerCase();
           break;
         case 'id':
           aValue = a.id;
@@ -194,7 +238,7 @@ export default function DecorateBromidePage() {
           aValue = a.name.toLowerCase();
           bValue = b.name.toLowerCase();
       }
-      
+
       if (typeof aValue === 'string') {
         return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       }
@@ -208,13 +252,14 @@ export default function DecorateBromidePage() {
     currentPage * itemsPerPage
   );
 
-  const handleSortChange = (newSortBy: SortOption) => {
-    if (sortBy === newSortBy) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortDirection('desc');
-    }
+  const handleSortChange = (newSortBy: string, direction: SortDirection) => {
+    setSortBy(newSortBy);
+    setSortDirection(direction);
+  };
+
+  const handleFilterChange = (key: string, value: any) => {
+    setFilter(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
@@ -222,6 +267,8 @@ export default function DecorateBromidePage() {
       search: '',
       type: '',
       rarity: '',
+      character: '',
+      source: '',
       version: '',
       hasEffects: false,
       hasCharacter: false
@@ -229,29 +276,7 @@ export default function DecorateBromidePage() {
     setCurrentPage(1);
   };
 
-  const SortButton = ({ sortKey, children }: { sortKey: SortOption; children: React.ReactNode }) => (
-    <motion.button
-      onClick={() => handleSortChange(sortKey)}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={`flex items-center space-x-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-        sortBy === sortKey 
-          ? 'bg-gradient-to-r from-accent-pink to-accent-purple text-white shadow-lg' 
-          : 'bg-dark-card/50 border border-dark-border hover:bg-accent-pink/10 text-gray-300 hover:border-accent-pink/30'
-      }`}
-    >
-      <span>{children}</span>
-      {sortBy === sortKey && (
-        <motion.div
-          initial={{ rotate: 0 }}
-          animate={{ rotate: sortDirection === 'asc' ? 0 : 180 }}
-          transition={{ duration: 0.2 }}
-        >
-          <SortAsc className="w-3 h-3" />
-        </motion.div>
-      )}
-    </motion.button>
-  );
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-primary">
@@ -271,184 +296,33 @@ export default function DecorateBromidePage() {
         </motion.div>
 
         {/* Search and Filter Controls */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={filter.search}
-                onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-                className="w-full bg-dark-card/70 backdrop-blur-sm border border-dark-border/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20 transition-all placeholder-gray-500"
-                placeholder="Search bromides and decorations..."
-              />
-              {filter.search && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  onClick={() => setFilter(prev => ({ ...prev, search: '' }))}
-                  className="absolute right-3 top-3 w-4 h-4 text-gray-400 hover:text-accent-cyan transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </motion.button>
-              )}
-            </div>
-
-            {/* Filter Controls */}
-            <div className="flex items-center gap-3">
-              <motion.button
-                onClick={() => setShowFilters(!showFilters)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`px-4 py-3 rounded-xl transition-all flex items-center gap-2 ${
-                  showFilters 
-                    ? 'bg-gradient-to-r from-gray-900 to-black text-white shadow-lg border border-gray-700' 
-                    : 'bg-gray-800/70 border border-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-900/50'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm font-medium">Filters</span>
-              </motion.button>
-
-              <div className="text-sm text-gray-500 bg-gray-900/50 px-3 py-3 rounded-xl border border-gray-700/50">
-                <span className="text-gray-300 font-medium">{filteredAndSortedBromides.length}</span> found
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Advanced Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -20 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="mb-8 overflow-hidden"
-            >
-              <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6">
-                {/* Filter Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white flex items-center">
-                    <Filter className="w-5 h-5 mr-2 text-gray-400" />
-                    Advanced Filters
-                  </h3>
-                </div>
-
-                {/* Basic Filters */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                    <select
-                      value={filter.type}
-                      onChange={(e) => setFilter(prev => ({ ...prev, type: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Types</option>
-                      {[...bromideTypes, ...decorationTypes].map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Rarity</label>
-                    <select
-                      value={filter.rarity}
-                      onChange={(e) => setFilter(prev => ({ ...prev, rarity: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Rarities</option>
-                      {rarities.map(rarity => (
-                        <option key={rarity} value={rarity}>{rarity}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Version</label>
-                    <select
-                      value={filter.version}
-                      onChange={(e) => setFilter(prev => ({ ...prev, version: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Versions</option>
-                      {versions.map(version => (
-                        <option key={version} value={version}>{version}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Features</label>
-                    <div className="space-y-2 mt-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={filter.hasEffects}
-                          onChange={(e) => setFilter(prev => ({ ...prev, hasEffects: e.target.checked }))}
-                          className="rounded border-gray-700 text-gray-900 focus:ring-gray-500/20"
-                        />
-                        <span className="text-xs text-gray-300">Has Effects</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={filter.hasCharacter}
-                          onChange={(e) => setFilter(prev => ({ ...prev, hasCharacter: e.target.checked }))}
-                          className="rounded border-gray-700 text-gray-900 focus:ring-gray-500/20"
-                        />
-                        <span className="text-xs text-gray-300">Has Character</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sort Options */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                  <span className="text-sm text-gray-400 flex items-center mr-2">
-                    <SortAsc className="w-4 h-4 mr-1" />
-                    Sort by:
-                  </span>
-                  <SortButton sortKey="name">Name</SortButton>
-                  <SortButton sortKey="type">Type</SortButton>
-                  <SortButton sortKey="rarity">Rarity</SortButton>
-                  <SortButton sortKey="id">ID</SortButton>
-                </div>
-
-                {/* Filter Actions */}
-                <div className="flex items-center justify-between">
-                  <motion.button
-                    onClick={clearFilters}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-accent-pink/20 to-accent-purple/20 hover:from-accent-pink/30 hover:to-accent-purple/30 text-accent-pink border border-accent-pink/30 rounded-xl px-6 py-2 text-sm font-medium transition-all"
-                  >
-                    Clear All Filters
-                  </motion.button>
-                  <div className="text-sm text-gray-500">
-                    <span className="text-accent-cyan font-medium">{filteredAndSortedBromides.length}</span> of {sampleBromides.length} items
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+        <UnifiedFilter
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          filterFields={filterFields}
+          sortOptions={bromideSortOptions}
+          filterValues={filter}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          resultCount={filteredAndSortedBromides.length}
+          totalCount={sampleBromides.length}
+          itemLabel="bromides & decorations"
+          accentColor="accent-cyan"
+          secondaryColor="accent-purple"
+          blackTheme={true}
+          headerIcon={<Search className="w-4 h-4" />}
+        />
+        
         {/* Bromides Display */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
             {paginatedBromides.map((bromide, index) => (
               <motion.div
                 key={bromide.id}

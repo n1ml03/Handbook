@@ -423,12 +423,21 @@ export const skillSortOptions: SortOption[] = [
   { key: 'cooldown', label: 'Cooldown' },
 ];
 
-export const createDecorBromideFilterConfig = (types: string[], categories: string[], versions: string[] = []): FilterField[] => [
+export const bromideSortOptions: SortOption[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'type', label: 'Type' },
+  { key: 'rarity', label: 'Rarity' },
+  { key: 'character', label: 'Character' },
+  { key: 'source', label: 'Source' },
+  { key: 'id', label: 'ID' },
+];
+
+export const createDecorBromideFilterConfig = (types: string[], rarities: string[], characters: string[], sources: string[], versions: string[] = []): FilterField[] => [
   {
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search bromides...',
+    placeholder: 'Search bromides and decorations...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -440,12 +449,28 @@ export const createDecorBromideFilterConfig = (types: string[], categories: stri
     icon: <Tag className="w-3 h-3 mr-1" />,
   },
   {
-    key: 'category',
-    label: 'Category',
+    key: 'rarity',
+    label: 'Rarity',
     type: 'select',
-    placeholder: 'All Categories',
-    options: categories.map(c => ({ value: c, label: c })),
-    icon: <Shield className="w-3 h-3 mr-1" />,
+    placeholder: 'All Rarities',
+    options: rarities.map(r => ({ value: r, label: r })),
+    icon: <Star className="w-3 h-3 mr-1" />,
+  },
+  {
+    key: 'character',
+    label: 'Character',
+    type: 'select',
+    placeholder: 'All Characters',
+    options: characters.map(c => ({ value: c, label: c })),
+    icon: <Tag className="w-3 h-3 mr-1" />,
+  },
+  {
+    key: 'source',
+    label: 'Source',
+    type: 'select',
+    placeholder: 'All Sources',
+    options: sources.map(s => ({ value: s, label: s })),
+    icon: <Calendar className="w-3 h-3 mr-1" />,
   },
   {
     key: 'version',
@@ -454,6 +479,16 @@ export const createDecorBromideFilterConfig = (types: string[], categories: stri
     placeholder: 'All Versions',
     options: versions.map(v => ({ value: v, label: v })),
     icon: <Calendar className="w-3 h-3 mr-1" />,
+  },
+  {
+    key: 'hasEffects',
+    label: 'Has Effects',
+    type: 'checkbox',
+  },
+  {
+    key: 'hasCharacter',
+    label: 'Has Character',
+    type: 'checkbox',
   },
 ];
 

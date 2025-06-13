@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface SpacingProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }
 
@@ -10,7 +10,6 @@ interface SectionProps extends SpacingProps {
   title?: string;
   description?: string;
   action?: React.ReactNode;
-  children?: React.ReactNode;
 }
 
 // Enhanced container with optimal spacing
