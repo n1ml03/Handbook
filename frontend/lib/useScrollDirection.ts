@@ -2,13 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 
 interface UseScrollDirectionOptions {
   threshold?: number;
-  debounceTime?: number;
 }
 
 type ScrollDirection = 'up' | 'down' | null;
 
 export function useScrollDirection(options: UseScrollDirectionOptions = {}) {
-  const { threshold = 50, debounceTime = 100 } = options;
+  const { threshold = 50 } = options;
   
   const [scrollDirection, setScrollDirection] = useState<ScrollDirection>(null);
   const [isScrolled, setIsScrolled] = useState(false);

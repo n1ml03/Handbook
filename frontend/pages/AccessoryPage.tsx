@@ -9,6 +9,7 @@ import { accessoriesData } from '@/data';
 import { accessoriesDetailedData } from '@/data';
 import UnifiedFilter, { SortDirection } from '../components/UnifiedFilter';
 import { createAccessoryFilterConfig, accessorySortOptions } from '../components/FilterConfigs';
+import React from 'react';
 
 const accessoryTypes = ['Necklace', 'Earrings', 'Bracelet', 'Ring', 'Hair', 'Other'] as const;
 const rarities = ['SSR', 'SR', 'R', 'N'] as const;
@@ -33,7 +34,7 @@ interface AccessoryCardProps {
   accessory: SampleAccessory;
 }
 
-function AccessoryCard({ accessory }: AccessoryCardProps) {
+const AccessoryCard = React.memo(function AccessoryCard({ accessory }: AccessoryCardProps) {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'SSR': return 'from-yellow-400 to-orange-500 text-black';
@@ -131,7 +132,7 @@ function AccessoryCard({ accessory }: AccessoryCardProps) {
       </div>
     </motion.div>
   );
-}
+});
 
 export default function AccessoryPage() {
   const accessories = accessoriesData;
@@ -237,11 +238,11 @@ export default function AccessoryPage() {
     });
   }, [sampleAccessories, filterValues, sortBy, sortDirection]);
 
-  const totalPages = Math.ceil(filteredAndSortedAccessories.length / itemsPerPage);
-  const paginatedAccessories = filteredAndSortedAccessories.slice(
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedAccessories.length / itemsPerPage), [filteredAndSortedAccessories.length, itemsPerPage]);
+  const paginatedAccessories = useMemo(() => filteredAndSortedAccessories.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
-  );
+  ), [filteredAndSortedAccessories, currentPage, itemsPerPage]);
 
   const handleFilterChange = (key: string, value: any) => {
     setFilterValues(prev => ({ ...prev, [key]: value }));

@@ -1,12 +1,9 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
   ChevronRight,
   Search,
-  SortAsc,
-  Filter,
-  RefreshCw,
   Calendar,
   Clock,
   Gift,
@@ -262,11 +259,11 @@ export default function FestivalPage() {
     });
   }, [allEvents, filterValues, sortBy, sortDirection]);
 
-  const totalPages = Math.ceil(filteredAndSortedFestivals.length / itemsPerPage);
-  const paginatedFestivals = filteredAndSortedFestivals.slice(
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedFestivals.length / itemsPerPage), [filteredAndSortedFestivals.length, itemsPerPage]);
+  const paginatedFestivals = useMemo(() => filteredAndSortedFestivals.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
-  );
+  ), [filteredAndSortedFestivals, currentPage, itemsPerPage]);
 
   const handleFilterChange = (key: string, value: any) => {
     setFilterValues(prev => ({ ...prev, [key]: value }));
@@ -318,7 +315,6 @@ export default function FestivalPage() {
           sortDirection={sortDirection}
           onSortChange={handleSortChange}
           resultCount={filteredAndSortedFestivals.length}
-          totalCount={allEvents.filter(event => event.type === 'festival').length}
           itemLabel="festivals"
           accentColor="yellow"
           secondaryColor="orange"

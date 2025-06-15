@@ -1,26 +1,25 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
   ChevronRight,
   Search,
-  SortAsc,
   Zap,
   Heart,
   User,
   Filter,
-  RefreshCw
 } from 'lucide-react';
 import { charactersData } from '@/data';
 import UnifiedFilter, { FilterField, SortOption, SortDirection } from '@/components/UnifiedFilter';
+import React from 'react';
 
 interface GirlCardProps {
   girl: any;
   onClick?: () => void;
 }
 
-function GirlCard({ girl, onClick }: GirlCardProps) {
+const GirlCard = React.memo(function GirlCard({ girl, onClick }: GirlCardProps) {
   const getTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
       case 'pow': return 'from-red-400 to-pink-500';
@@ -161,7 +160,7 @@ function GirlCard({ girl, onClick }: GirlCardProps) {
       </div>
     </motion.div>
   );
-}
+});
 
 export default function GirlListPage() {
   const navigate = useNavigate();
@@ -329,11 +328,11 @@ export default function GirlListPage() {
     });
   }, [girls, filterValues, sortBy, sortDirection]);
 
-  const totalPages = Math.ceil(filteredAndSortedGirls.length / itemsPerPage);
-  const paginatedGirls = filteredAndSortedGirls.slice(
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedGirls.length / itemsPerPage), [filteredAndSortedGirls.length, itemsPerPage]);
+  const paginatedGirls = useMemo(() => filteredAndSortedGirls.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
-  );
+  ), [filteredAndSortedGirls, currentPage, itemsPerPage]);
 
   const handleFilterChange = (key: string, value: any) => {
     setFilterValues(prev => ({ ...prev, [key]: value }));
@@ -391,7 +390,6 @@ export default function GirlListPage() {
           sortDirection={sortDirection}
           onSortChange={handleSortChange}
           resultCount={filteredAndSortedGirls.length}
-          totalCount={girls.length}
           itemLabel="girls"
           accentColor="accent-pink"
           secondaryColor="accent-purple"

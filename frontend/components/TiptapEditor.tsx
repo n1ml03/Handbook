@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useEditor, EditorContent, BubbleMenu, FloatingMenu } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -40,17 +40,12 @@ import {
   Edit3,
   Smile,
   Keyboard,
-  Upload,
-  Trash2,
-  Plus,
-  X
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 interface TiptapEditorProps {
   content: string;
@@ -66,7 +61,7 @@ interface TiptapEditorProps {
   mode?: 'full' | 'minimal' | 'inline';
 }
 
-const TiptapEditor: React.FC<TiptapEditorProps> = ({
+const TiptapEditor = ({
   content,
   onChange,
   editable = true,
@@ -78,7 +73,7 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   maxCharacters,
   minHeight = '200px',
   mode = 'full'
-}) => {
+}: TiptapEditorProps) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -169,6 +164,58 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
     },
   });
 
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && editor) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        editor.chain().focus().setImage({ src: base64 }).run();
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [editor]);
+
+  const handleEmojiClick = useCallback((emojiData: EmojiClickData) => {
+    if (editor) {
+      editor.chain().focus().insertContent(emojiData.emoji).run();
+    }
+    setShowEmojiPicker(false);
+  }, [editor]);
+
+  const addLink = useCallback(() => {
+    const url = window.prompt('Enter URL:');
+    if (url && editor) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+  }, [editor]);
+
+  const addImage = useCallback(() => {
+    const url = window.prompt('Enter image URL:');
+    if (url && editor) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+  }, [editor]);
+
+  const addTable = useCallback(() => {
+    if (editor) {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    }
+  }, [editor]);
+
+  const setTextAlign = useCallback((alignment: 'left' | 'center' | 'right' | 'justify') => {
+    if (editor) {
+      editor.chain().focus().setTextAlign(alignment).run();
+    }
+  }, [editor]);
+
+  const setTextColor = useCallback((color: string) => {
+    if (editor) {
+      editor.chain().focus().setColor(color).run();
+    }
+    setShowColorPicker(false);
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
@@ -209,25 +256,6 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   const ToolbarDivider = () => (
     <div className="w-px h-6 bg-border/50 mx-1" />
   );
-
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && editor) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
-        editor.chain().focus().setImage({ src: base64 }).run();
-      };
-      reader.readAsDataURL(file);
-    }
-  }, [editor]);
-
-  const handleEmojiClick = useCallback((emojiData: EmojiClickData) => {
-    if (editor) {
-      editor.chain().focus().insertContent(emojiData.emoji).run();
-    }
-    setShowEmojiPicker(false);
-  }, [editor]);
 
   const KeyboardShortcutsDialog = () => (
     <Dialog open={showKeyboardShortcuts} onOpenChange={setShowKeyboardShortcuts}>
@@ -311,39 +339,6 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
       </motion.div>
     );
   };
-
-  const addLink = useCallback(() => {
-    const url = window.prompt('Enter URL:');
-    if (url && editor) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
-  }, [editor]);
-
-  const addImage = useCallback(() => {
-    const url = window.prompt('Enter image URL:');
-    if (url && editor) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
-  }, [editor]);
-
-  const addTable = useCallback(() => {
-    if (editor) {
-      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-    }
-  }, [editor]);
-
-  const setTextAlign = useCallback((alignment: 'left' | 'center' | 'right' | 'justify') => {
-    if (editor) {
-      editor.chain().focus().setTextAlign(alignment).run();
-    }
-  }, [editor]);
-
-  const setTextColor = useCallback((color: string) => {
-    if (editor) {
-      editor.chain().focus().setColor(color).run();
-    }
-    setShowColorPicker(false);
-  }, [editor]);
 
   const getCharacterCount = () => {
     if (!editor) return { characters: 0, words: 0 };

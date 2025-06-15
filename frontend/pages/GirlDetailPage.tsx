@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-const GirlDetailPage: React.FC = () => {
+export default function GirlDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
@@ -621,6 +621,4 @@ const GirlDetailPage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default GirlDetailPage; 
+} 

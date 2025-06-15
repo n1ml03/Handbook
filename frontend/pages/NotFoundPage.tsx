@@ -1,11 +1,11 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home, ArrowLeft, Search, Star, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const NotFoundPage: React.FC = () => {
+export default function NotFoundPage() {
   const floatingIcons = [
     { icon: Star, delay: 0, x: 50, y: 30 },
     { icon: Star, delay: 0.5, x: -30, y: 60 },
@@ -177,6 +177,4 @@ const NotFoundPage: React.FC = () => {
       </motion.div>
     </div>
   );
-};
-
-export default NotFoundPage; 
+} 

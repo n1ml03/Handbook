@@ -1,12 +1,9 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   ChevronLeft, 
   ChevronRight,
   Search,
-  SortAsc,
-  Filter,
-  RefreshCw,
   ShoppingCart,
   Coins,
   Tag,
@@ -223,10 +220,9 @@ const mockShopItems: ShopItem[] = [
 
 interface ShopItemCardProps {
   item: ShopItem;
-  onPurchase: (id: string) => void;
 }
 
-function ShopItemCard({ item, onPurchase }: ShopItemCardProps) {
+function ShopItemCard({ item }: ShopItemCardProps) {
   const getCurrencyIcon = (currency: string) => {
     switch (currency) {
       case 'coins': return <Coins className="w-4 h-4" />;
@@ -345,7 +341,6 @@ function ShopItemCard({ item, onPurchase }: ShopItemCardProps) {
 }
 
 export default function ShopPage() {
-  const [shopItems, setShopItems] = useState<ShopItem[]>(mockShopItems);
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [activeSection, setActiveSection] = useState<'owner' | 'event' | 'venus' | 'vip'>('owner');
@@ -380,7 +375,7 @@ export default function ShopPage() {
       label: 'Type',
       type: 'select',
       placeholder: 'All Types',
-      options: [...new Set(shopItems.map(item => item.type))].sort().map(type => ({
+      options: [...new Set(mockShopItems.map(item => item.type))].sort().map(type => ({
         value: type,
         label: type.charAt(0).toUpperCase() + type.slice(1)
       })),
@@ -459,7 +454,7 @@ export default function ShopPage() {
   ];
 
   const filteredAndSortedItems = useMemo(() => {
-    let filtered = shopItems.filter(item => {
+    let filtered = mockShopItems.filter(item => {
       // Filter by active section first
       if (item.section !== activeSection) return false;
       
@@ -510,7 +505,7 @@ export default function ShopPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [shopItems, filterValues, sortBy, sortDirection, activeSection]);
+  }, [mockShopItems, filterValues, sortBy, sortDirection, activeSection]);
 
   const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
   const paginatedItems = filteredAndSortedItems.slice(
@@ -542,11 +537,6 @@ export default function ShopPage() {
       priceMax: ''
     });
     setCurrentPage(1);
-  };
-
-  const handlePurchase = (id: string) => {
-    // Handle purchase logic here
-    console.log('Purchasing item:', id);
   };
 
   return (
@@ -614,7 +604,6 @@ export default function ShopPage() {
           sortDirection={sortDirection}
           onSortChange={handleSortChange}
           resultCount={filteredAndSortedItems.length}
-          totalCount={shopItems.filter(item => item.section === activeSection).length}
           itemLabel="items"
           accentColor="accent-pink"
           secondaryColor="accent-purple"
@@ -648,7 +637,7 @@ export default function ShopPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 * index }}
               >
-                <ShopItemCard item={item} onPurchase={handlePurchase} />
+                <ShopItemCard item={item} />
               </motion.div>
             ))}
           </div>

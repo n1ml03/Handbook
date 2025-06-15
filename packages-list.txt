@@ -1,0 +1,61 @@
+Handbook Project - Package List (Simple Format)
+===============================================
+
+Main Libraries/Packages Used:
+=============================
+
+UI & Component Libraries:
+- radix-ui
+- lucide-react
+- framer-motion
+- class-variance-authority
+- clsx
+- tailwind-merge
+- tailwindcss-animate
+- emoji-picker-react
+
+Text Editor:
+- tiptap
+
+React Ecosystem:
+- react
+- react-dom
+- react-router-dom
+- zustand
+
+Data & Tables:
+- tanstack/react-table
+- reactflow
+- recharts
+
+Backend/Server:
+- express
+- express-rate-limit
+- cors
+- helmet
+- morgan
+- mysql2
+- winston
+
+Validation & Utilities:
+- zod
+- joi
+- uuid
+- dotenv
+- lowlight
+
+Development Tools:
+- typescript
+- vite
+- eslint
+- tailwindcss
+- concurrently
+
+Build Tools:
+- rollup
+- vitejs
+
+Package Manager:
+- bun
+
+Total Main Libraries: 32 

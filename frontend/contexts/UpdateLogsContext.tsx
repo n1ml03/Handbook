@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UpdateLog, updateLogsService } from '@/data/updateLogs';
 
 interface UpdateLogsContextType {
@@ -17,7 +17,7 @@ interface UpdateLogsProviderProps {
   children: ReactNode;
 }
 
-export const UpdateLogsProvider: React.FC<UpdateLogsProviderProps> = ({ children }) => {
+export function UpdateLogsProvider({ children }: UpdateLogsProviderProps) {
   const [updateLogs, setUpdateLogs] = useState<UpdateLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -103,7 +103,7 @@ export const UpdateLogsProvider: React.FC<UpdateLogsProviderProps> = ({ children
       {children}
     </UpdateLogsContext.Provider>
   );
-};
+}
 
 export const useUpdateLogs = (): UpdateLogsContextType => {
   const context = useContext(UpdateLogsContext);

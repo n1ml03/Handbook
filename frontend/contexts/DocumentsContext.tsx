@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { Document } from '@/data';
 
 interface DocumentsContextType {
@@ -10,7 +10,7 @@ interface DocumentsContextType {
 
 const DocumentsContext = createContext<DocumentsContextType | undefined>(undefined);
 
-export const DocumentsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function DocumentsProvider({ children }: { children: ReactNode }) {
   const [documents, setDocuments] = useState<Document[]>([]);
 
   const addDocument = useCallback((document: Document) => {
@@ -32,7 +32,7 @@ export const DocumentsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       {children}
     </DocumentsContext.Provider>
   );
-};
+}
 
 export const useDocuments = () => {
   const context = useContext(DocumentsContext);

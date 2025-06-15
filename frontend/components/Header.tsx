@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
@@ -41,26 +41,28 @@ interface HeaderProps {
   className?: string;
 }
 
-// Modern Dropdown component with enhanced animations and UX using Portal
-const Dropdown: React.FC<{
-  trigger: React.ReactNode;
-  children: React.ReactNode;
+function Dropdown({
+  trigger,
+  children,
+  isOpen,
+  onToggle
+}: {
+  trigger: ReactNode;
+  children: ReactNode;
   isOpen: boolean;
   onToggle: () => void;
-}> = ({ trigger, children, isOpen, onToggle }) => {
+}) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
-  // Calculate dropdown position relative to trigger
   const updateDropdownPosition = useCallback(() => {
     if (triggerRef.current && isOpen) {
       const triggerRect = triggerRef.current.getBoundingClientRect();
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       const scrollX = window.scrollX || document.documentElement.scrollLeft;
-
       setDropdownPosition({
-        top: triggerRect.bottom + scrollY + 8, // 8px gap
+        top: triggerRect.bottom + scrollY + 8,
         left: triggerRect.left + scrollX
       });
     }
@@ -68,26 +70,25 @@ const Dropdown: React.FC<{
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
-          triggerRef.current && !triggerRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(event.target as Node)
+      ) {
         if (isOpen) {
           onToggle();
         }
       }
     };
-
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isOpen) {
         onToggle();
       }
     };
-
     const handleResize = () => {
       if (isOpen) {
         updateDropdownPosition();
       }
     };
-
     if (isOpen) {
       updateDropdownPosition();
       document.addEventListener('mousedown', handleClickOutside);
@@ -95,7 +96,6 @@ const Dropdown: React.FC<{
       window.addEventListener('resize', handleResize);
       window.addEventListener('scroll', updateDropdownPosition);
     }
-
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscapeKey);
@@ -108,9 +108,9 @@ const Dropdown: React.FC<{
     <div
       ref={dropdownRef}
       className={cn(
-        "header-dropdown-portal w-64",
-        "animate-in fade-in-0 zoom-in-95 slide-in-from-top-2",
-        "duration-200"
+        'header-dropdown-portal w-64',
+        'animate-in fade-in-0 zoom-in-95 slide-in-from-top-2',
+        'duration-200'
       )}
       style={{
         top: dropdownPosition.top,
@@ -120,7 +120,6 @@ const Dropdown: React.FC<{
       aria-orientation="vertical"
       aria-labelledby="dropdown-trigger"
     >
-      {/* Dropdown Content */}
       <div className="header-dropdown-content overflow-hidden">
         <div className="py-1" role="none">
           {children}
@@ -137,48 +136,39 @@ const Dropdown: React.FC<{
       }
     </div>
   );
-};
+}
 
-// Enhanced dropdown item component with accessibility
-const DropdownItem: React.FC<{
+function DropdownItem({
+  item,
+  isActive,
+  onClick
+}: {
   item: MenuItem;
   isActive: boolean;
   onClick: () => void;
-}> = ({ item, isActive, onClick }) => {
+}) {
   const ItemIcon = item.icon;
-
   return (
     <Link
       to={item.path!}
       className={cn(
-        "flex items-center gap-2 px-4 py-2.5 mx-2 text-sm font-medium rounded-md",
-        "transition-all duration-150 ease-in-out",
-        "hover:bg-accent/10 focus:bg-accent/10",
-        "focus:outline-none focus:ring-2 focus:ring-accent-pink/30 focus:ring-offset-2",
-        "min-h-[44px]", // Minimum touch target size for accessibility
+        'flex items-center gap-2 px-4 py-2.5 mx-2 text-sm font-medium rounded-md',
+        'transition-all duration-150 ease-in-out',
+        'hover:bg-accent/10 focus:bg-accent/10',
+        'focus:outline-none focus:ring-2 focus:ring-accent-pink/30 focus:ring-offset-2',
+        'min-h-[44px]',
         isActive && [
-          "bg-accent-pink/20 text-accent-pink"
+          'bg-accent-pink/20 text-accent-pink'
         ]
       )}
       onClick={onClick}
       role="menuitem"
       aria-current={isActive ? 'page' : undefined}
     >
-      {/* Icon */}
       <div className="flex items-center justify-center w-6 h-6 rounded-md transition-all duration-200" aria-hidden="true">
-        <ItemIcon className={cn(
-          "w-4 h-4", // Standard icon size matching regular nav items
-          item.color,
-          isActive && "text-accent-pink"
-        )} />
+        <ItemIcon className={cn('w-4 h-4', item.color, isActive && 'text-accent-pink')} />
       </div>
-
-      {/* Label */}
-      <span className="flex-1">
-        {item.label}
-      </span>
-
-      {/* Badge */}
+      <span className="flex-1">{item.label}</span>
       {item.badge && (
         <Badge
           variant="secondary"
@@ -190,9 +180,9 @@ const DropdownItem: React.FC<{
       )}
     </Link>
   );
-};
+}
 
-export const Header: React.FC<HeaderProps> = ({ className }) => {
+export function Header({ className }: HeaderProps) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -553,6 +543,6 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
       </div>
     </header>
   );
-};
+}
 
 export default Header; 

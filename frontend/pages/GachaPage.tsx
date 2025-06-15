@@ -176,7 +176,6 @@ function GachaCard({ gacha }: GachaCardProps) {
 }
 
 export default function GachaPage() {
-  const allEvents = eventsData;
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<string>('startDate');

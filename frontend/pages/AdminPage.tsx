@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   Settings,
   FileText,
@@ -44,12 +44,13 @@ import {
   DownloadButton
 } from '@/components/ui/loading';
 import { cn } from '@/lib/utils';
-import { documentsData, documentCategoriesData, type Document, type DocumentCategory } from '@/data';
+import { documentCategoriesData, type Document, type DocumentCategory } from '@/data';
 import { useUpdateLogs } from '@/contexts/UpdateLogsContext';
 import { UpdateLog } from '@/data/updateLogs';
 import TiptapEditor from '@/components/TiptapEditor';
 import { Container, Section, Card, Inline, FormGroup, StatusBadge } from '@/components/ui/spacing';
 import { useDocuments } from '@/contexts/DocumentsContext';
+import React from 'react';
 
 interface AdminSection {
   id: string;
@@ -117,7 +118,7 @@ interface NotificationState {
 
 // UpdateLog interface is now imported from @/data/updateLogs
 
-const AdminPage: React.FC = () => {
+const AdminPage = () => {
   const { documents, addDocument, updateDocument, deleteDocument } = useDocuments();
   const [documentCategories] = useState<DocumentCategory[]>(documentCategoriesData);
   const { updateLogs, addUpdateLog, updateUpdateLog, deleteUpdateLog } = useUpdateLogs();
@@ -173,7 +174,7 @@ const AdminPage: React.FC = () => {
   const [exportProgress, setExportProgress] = useState(0);
 
   // Available pages for import
-  const availablePages = [
+  const availablePages = useMemo(() => ([
     { id: 'accessory', name: 'Accessory' },
     { id: 'decoratebromide', name: 'Decorate Bromide' },
     { id: 'event', name: 'Event' },
@@ -184,7 +185,7 @@ const AdminPage: React.FC = () => {
     { id: 'ownerroom', name: 'Owner Room' },
     { id: 'shop', name: 'Shop' },
     { id: 'skill', name: 'Skill' }
-  ];
+  ]), []);
 
   // Notification system
   const addNotification = useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
@@ -540,37 +541,39 @@ const AdminPage: React.FC = () => {
   };
 
   // Notification display component
-  const NotificationToast: React.FC<{ notification: NotificationState }> = ({ notification }) => (
-    <div className={cn(
-      "flex items-start gap-3 p-4 rounded-lg border shadow-lg transition-all duration-300",
-      "bg-background/95 backdrop-blur-sm",
-      notification.type === 'success' && "border-green-500/20 bg-green-500/5",
-      notification.type === 'error' && "border-red-500/20 bg-red-500/5",
-      notification.type === 'warning' && "border-yellow-500/20 bg-yellow-500/5",
-      notification.type === 'info' && "border-blue-500/20 bg-blue-500/5"
-    )}>
-      <div className="flex-shrink-0 mt-0.5">
-        {notification.type === 'success' && <CheckCircle2 className="w-5 h-5 text-green-600" />}
-        {notification.type === 'error' && <AlertCircle className="w-5 h-5 text-red-600" />}
-        {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-yellow-600" />}
-        {notification.type === 'info' && <Info className="w-5 h-5 text-blue-600" />}
+  const NotificationToast = React.memo(function NotificationToast({ notification }: { notification: NotificationState }) {
+    return (
+      <div className={cn(
+        "flex items-start gap-3 p-4 rounded-lg border shadow-lg transition-all duration-300",
+        "bg-background/95 backdrop-blur-sm",
+        notification.type === 'success' && "border-green-500/20 bg-green-500/5",
+        notification.type === 'error' && "border-red-500/20 bg-red-500/5",
+        notification.type === 'warning' && "border-yellow-500/20 bg-yellow-500/5",
+        notification.type === 'info' && "border-blue-500/20 bg-blue-500/5"
+      )}>
+        <div className="flex-shrink-0 mt-0.5">
+          {notification.type === 'success' && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+          {notification.type === 'error' && <AlertCircle className="w-5 h-5 text-red-600" />}
+          {notification.type === 'warning' && <AlertTriangle className="w-5 h-5 text-yellow-600" />}
+          {notification.type === 'info' && <Info className="w-5 h-5 text-blue-600" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-sm font-semibold text-foreground">{notification.title}</h4>
+          <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+        </div>
+        <button
+          onClick={() => removeNotification(notification.id)}
+          className="flex-shrink-0 p-1 rounded-md bg-muted/20 transition-colors duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none"
+          aria-label="Dismiss notification"
+        >
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-semibold text-foreground">{notification.title}</h4>
-        <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
-      </div>
-      <button
-        onClick={() => removeNotification(notification.id)}
-        className="flex-shrink-0 p-1 rounded-md bg-muted/20 transition-colors duration-200 focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none"
-        aria-label="Dismiss notification"
-      >
-        <X className="w-4 h-4 text-muted-foreground" />
-      </button>
-    </div>
-  );
+    );
+  });
 
   // CSV Preview Modal Component
-  const CSVPreviewModal: React.FC = () => {
+  const CSVPreviewModal = () => {
     if (!showPreviewModal || !csvPreview) return null;
 
     return (

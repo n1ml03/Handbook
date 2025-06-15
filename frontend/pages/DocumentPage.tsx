@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, FileText, Tags, Calendar, User, Filter, SortAsc, RefreshCw, ArrowLeft, Edit3, X, Eye, CheckSquare, ListChecks } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, FileText, Tags, Calendar, User, ArrowLeft, Edit3, X, Eye, CheckSquare, ListChecks } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { documentsData, documentCategoriesData, type Document, type DocumentCategory } from '@/data';
+import { documentCategoriesData, type Document } from '@/data';
 import TiptapEditor from '@/components/TiptapEditor';
 import { Container, Section, Card, Stack, Inline, StatusBadge } from '@/components/ui/spacing';
 import { SaveButton } from '@/components/ui/loading';
 import { useDocuments } from '@/contexts/DocumentsContext';
 import UnifiedFilter, { FilterField, SortOption as UnifiedSortOption, SortDirection } from '@/components/UnifiedFilter';
 
-type SortOption = 'date' | 'title' | 'category' | 'author';
 type ViewMode = 'list' | 'document';
 type ActiveSection = 'checklist-creation' | 'checking-guide';
 
@@ -23,9 +22,8 @@ interface DocumentSection {
   status: 'active' | 'inactive' | 'draft';
 }
 
-const DocumentPage: React.FC = () => {
+export default function DocumentPage() {
   const { documents, updateDocument } = useDocuments();
-  const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(documentCategoriesData);
   const [activeSection, setActiveSection] = useState<ActiveSection>('checklist-creation');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -202,7 +200,7 @@ const DocumentPage: React.FC = () => {
       placeholder: 'All Categories',
       options: [
         { value: 'all', label: 'All Categories' },
-        ...documentCategories.map(cat => ({ value: cat.id, label: cat.name }))
+        ...documentCategoriesData.map(cat => ({ value: cat.id, label: cat.name }))
       ],
       icon: <Tags className="w-3 h-3 mr-1" />,
     },
@@ -225,7 +223,7 @@ const DocumentPage: React.FC = () => {
       placeholder: 'Filter by author...',
       icon: <User className="w-3 h-3 mr-1" />,
     }
-  ], [documentCategories]);
+  ], [documentCategoriesData]);
 
   // Sort options for UnifiedFilter
   const sortOptions: UnifiedSortOption[] = [
@@ -273,25 +271,6 @@ const DocumentPage: React.FC = () => {
         sortDirection={sortDirection}
         onSortChange={handleSortChange}
         resultCount={filteredDocuments.length}
-        totalCount={documents.filter(doc => {
-          if (activeSection === 'checklist-creation') {
-            return doc.tags.some(tag => 
-              tag.toLowerCase().includes('checklist') || 
-              tag.toLowerCase().includes('creation') ||
-              tag.toLowerCase().includes('guide') ||
-              doc.category === 'checklist-creation'
-            );
-          } else if (activeSection === 'checking-guide') {
-            return doc.tags.some(tag => 
-              tag.toLowerCase().includes('checking') || 
-              tag.toLowerCase().includes('verification') ||
-              tag.toLowerCase().includes('validation') ||
-              doc.category === 'checking-guide'
-            );
-          }
-          return false;
-        }).length}
-        itemLabel="documents"
         accentColor="accent-cyan"
         secondaryColor="accent-purple"
         blackTheme={true}
@@ -332,10 +311,10 @@ const DocumentPage: React.FC = () => {
                         variant="outline" 
                         className={cn(
                           "text-xs",
-                          documentCategories.find(cat => cat.id === document.category)?.color
+                          documentCategoriesData.find(cat => cat.id === document.category)?.color
                         )}
                       >
-                        {documentCategories.find(cat => cat.id === document.category)?.name || document.category}
+                        {documentCategoriesData.find(cat => cat.id === document.category)?.name || document.category}
                       </Badge>
                     </div>
                     
@@ -447,10 +426,10 @@ const DocumentPage: React.FC = () => {
               <Badge
                 variant="outline"
                 className={cn(
-                  documentCategories.find(cat => cat.id === selectedDocument?.category)?.color
+                  documentCategoriesData.find(cat => cat.id === selectedDocument?.category)?.color
                 )}
               >
-                {documentCategories.find(cat => cat.id === selectedDocument?.category)?.name || selectedDocument?.category}
+                {documentCategoriesData.find(cat => cat.id === selectedDocument?.category)?.name || selectedDocument?.category}
               </Badge>
             </Inline>
 
@@ -589,6 +568,4 @@ const DocumentPage: React.FC = () => {
       </AnimatePresence>
     </Container>
   );
-};
-
-export default DocumentPage; 
+} 

@@ -1,16 +1,16 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
+import { ReactNode } from "react"
+import { cn } from "@/lib/utils"
 import { Loader2, FileText, Save, Upload, Download } from 'lucide-react';
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
 }
 
 interface LoadingStateProps {
   isLoading: boolean;
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
   className?: string;
 }
 
@@ -22,32 +22,38 @@ interface LoadingOverlayProps {
 }
 
 // Basic loading spinner
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
-  size = 'md', 
-  className 
-}) => {
+export function LoadingSpinner({
+  size = 'md',
+  className
+}: LoadingSpinnerProps) {
   const sizeClasses = {
     sm: 'w-4 h-4',
-    md: 'w-6 h-6',
+    md: 'w-6 h-6', 
     lg: 'w-8 h-8'
-  };
+  }
 
   return (
-    <Loader2 className={cn(
-      'animate-spin text-accent-cyan',
-      sizeClasses[size],
-      className
-    )} />
-  );
-};
+    <div
+      className={cn(
+        "animate-spin rounded-full border-2 border-muted border-t-accent-pink",
+        sizeClasses[size],
+        className
+      )}
+      role="status"
+      aria-label="Loading"
+    >
+      <span className="sr-only">Loading...</span>
+    </div>
+  )
+}
 
 // Loading state wrapper
-export const LoadingState: React.FC<LoadingStateProps> = ({
+export function LoadingState({
   isLoading,
   children,
   fallback,
   className
-}) => {
+}: LoadingStateProps) {
   if (isLoading) {
     return (
       <div className={cn('flex items-center justify-center p-8', className)}>
@@ -62,15 +68,15 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
   }
 
   return <>{children}</>;
-};
+}
 
 // Loading overlay for full-screen loading
-export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
+export function LoadingOverlay({
   isVisible,
   message = 'Loading...',
   progress,
   className
-}) => {
+}: LoadingOverlayProps) {
   if (!isVisible) return null;
 
   return (
@@ -101,13 +107,10 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
       </div>
     </div>
   );
-};
+}
 
 // Skeleton loading components
-export const SkeletonText: React.FC<{
-  lines?: number;
-  className?: string;
-}> = ({ lines = 1, className }) => (
+export const SkeletonText = ({ lines = 1, className }: { lines?: number; className?: string }) => (
   <div className={cn('space-y-2', className)}>
     {Array.from({ length: lines }).map((_, i) => (
       <div
@@ -121,7 +124,7 @@ export const SkeletonText: React.FC<{
   </div>
 );
 
-export const SkeletonCard: React.FC<{ className?: string }> = ({ className }) => (
+export const SkeletonCard = ({ className }: { className?: string }) => (
   <div className={cn('doax-card p-6 space-y-4', className)}>
     <div className="flex items-center gap-3">
       <div className="w-12 h-12 bg-muted/50 rounded-lg animate-pulse" />
@@ -135,13 +138,7 @@ export const SkeletonCard: React.FC<{ className?: string }> = ({ className }) =>
 );
 
 // Action-specific loading buttons
-export const SaveButton: React.FC<{
-  isSaving: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  children?: React.ReactNode;
-  className?: string;
-}> = ({ isSaving, onClick, disabled, children, className }) => (
+export const SaveButton = ({ isSaving, onClick, disabled, children, className }: { isSaving: boolean; onClick: () => void; disabled?: boolean; children?: ReactNode; className?: string }) => (
   <button
     onClick={onClick}
     disabled={disabled || isSaving}
@@ -166,14 +163,7 @@ export const SaveButton: React.FC<{
   </button>
 );
 
-export const UploadButton: React.FC<{
-  isUploading: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  progress?: number;
-  children?: React.ReactNode;
-  className?: string;
-}> = ({ isUploading, onClick, disabled, progress, children, className }) => (
+export const UploadButton = ({ isUploading, onClick, disabled, progress, children, className }: { isUploading: boolean; onClick: () => void; disabled?: boolean; progress?: number; children?: ReactNode; className?: string }) => (
   <button
     onClick={onClick}
     disabled={disabled || isUploading}
@@ -198,13 +188,7 @@ export const UploadButton: React.FC<{
   </button>
 );
 
-export const DownloadButton: React.FC<{
-  isDownloading: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  children?: React.ReactNode;
-  className?: string;
-}> = ({ isDownloading, onClick, disabled, children, className }) => (
+export const DownloadButton = ({ isDownloading, onClick, disabled, children, className }: { isDownloading: boolean; onClick: () => void; disabled?: boolean; children?: ReactNode; className?: string }) => (
   <button
     onClick={onClick}
     disabled={disabled || isDownloading}
@@ -230,7 +214,7 @@ export const DownloadButton: React.FC<{
 );
 
 // Loading states for specific content types
-export const DocumentLoadingState: React.FC<{ className?: string }> = ({ className }) => (
+export const DocumentLoadingState = ({ className }: { className?: string }) => (
   <div className={cn('space-y-6', className)}>
     <div className="doax-card p-6">
       <div className="flex items-center gap-3 mb-4">
@@ -246,11 +230,7 @@ export const DocumentLoadingState: React.FC<{ className?: string }> = ({ classNa
 );
 
 // Inline loading indicator
-export const InlineLoading: React.FC<{
-  message?: string;
-  size?: 'sm' | 'md';
-  className?: string;
-}> = ({ message = 'Loading...', size = 'sm', className }) => (
+export const InlineLoading = ({ message = 'Loading...', size = 'sm', className }: { message?: string; size?: 'sm' | 'md'; className?: string }) => (
   <div className={cn('flex items-center gap-2 text-muted-foreground', className)}>
     <LoadingSpinner size={size} />
     <span className="text-sm">{message}</span>
@@ -258,11 +238,7 @@ export const InlineLoading: React.FC<{
 );
 
 // Pulsing dot indicator
-export const PulsingDot: React.FC<{
-  color?: 'cyan' | 'pink' | 'purple' | 'green';
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-}> = ({ color = 'cyan', size = 'md', className }) => {
+export const PulsingDot = ({ color = 'cyan', size = 'md', className }: { color?: 'cyan' | 'pink' | 'purple' | 'green'; size?: 'sm' | 'md' | 'lg'; className?: string }) => {
   const colorClasses = {
     cyan: 'bg-accent-cyan',
     pink: 'bg-accent-pink',

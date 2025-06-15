@@ -1,5 +1,5 @@
 import mysql from 'mysql2/promise';
-import pool, { getConnection, executeQuery, initializePool } from '../config/database';
+import pool, { executeQuery, initializePool } from '../config/database';
 import logger from '../config/logger';
 import { AppError } from '../middleware/errorHandler';
 
@@ -124,11 +124,11 @@ export class DatabaseService {
   // Characters CRUD
   async createCharacter(character: NewCharacter): Promise<Character> {
     try {
-      const [result] = await executeQuery(
+      await executeQuery(
         `INSERT INTO characters (id, name, name_jp, name_en, name_zh, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
         [character.id, character.name, character.nameJp, character.nameEn, character.nameZh]
-      ) as [mysql.ResultSetHeader, any];
+      );
 
       // Get the inserted record
       const [rows] = await executeQuery(
@@ -190,33 +190,26 @@ export class DatabaseService {
     setClause.push(`updated_at = NOW()`);
     params.push(id);
 
-    const [result] = await executeQuery(
+    await executeQuery(
       `UPDATE characters SET ${setClause.join(', ')} WHERE id = ?`,
       params
-    ) as [mysql.ResultSetHeader, any];
-
-    if (result.affectedRows === 0) {
-      throw new AppError('Character not found', 404);
-    }
+    );
 
     return this.getCharacterById(id);
   }
 
   async deleteCharacter(id: string): Promise<void> {
-    const [result] = await executeQuery('DELETE FROM characters WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
-    if (result.affectedRows === 0) {
-      throw new AppError('Character not found', 404);
-    }
+    await executeQuery('DELETE FROM characters WHERE id = ?', [id]);
   }
 
   // Skills CRUD
   async createSkill(skill: NewSkill): Promise<Skill> {
     try {
-      const [result] = await executeQuery(
+      await executeQuery(
         `INSERT INTO skills (id, name, type, description, icon, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
         [skill.id, skill.name, skill.type, skill.description, skill.icon]
-      ) as [mysql.ResultSetHeader, any];
+      );
 
       // Get the inserted record
       const [rows] = await executeQuery(
@@ -278,33 +271,26 @@ export class DatabaseService {
     setClause.push(`updated_at = NOW()`);
     params.push(id);
 
-    const [result] = await executeQuery(
+    await executeQuery(
       `UPDATE skills SET ${setClause.join(', ')} WHERE id = ?`,
       params
-    ) as [mysql.ResultSetHeader, any];
-
-    if (result.affectedRows === 0) {
-      throw new AppError('Skill not found', 404);
-    }
+    );
 
     return this.getSkillById(id);
   }
 
   async deleteSkill(id: string): Promise<void> {
-    const [result] = await executeQuery('DELETE FROM skills WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
-    if (result.affectedRows === 0) {
-      throw new AppError('Skill not found', 404);
-    }
+    await executeQuery('DELETE FROM skills WHERE id = ?', [id]);
   }
 
   // Swimsuits CRUD
   async createSwimsuit(swimsuit: NewSwimsuit): Promise<Swimsuit> {
     try {
-      const [result] = await executeQuery(
+      await executeQuery(
         `INSERT INTO swimsuits (id, name, character_id, rarity, pow, tec, stm, apl, release_date, reappear_date, image, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [swimsuit.id, swimsuit.name, swimsuit.characterId, swimsuit.rarity, swimsuit.pow, swimsuit.tec, swimsuit.stm, swimsuit.apl, swimsuit.releaseDate, swimsuit.reappearDate, swimsuit.image]
-      ) as [mysql.ResultSetHeader, any];
+      );
 
       // Get the inserted record
       const [rows] = await executeQuery(
@@ -373,40 +359,26 @@ export class DatabaseService {
     setClause.push(`updated_at = NOW()`);
     params.push(id);
 
-    try {
-      const [result] = await executeQuery(
-        `UPDATE swimsuits SET ${setClause.join(', ')} WHERE id = ?`,
-        params
-      ) as [mysql.ResultSetHeader, any];
+    await executeQuery(
+      `UPDATE swimsuits SET ${setClause.join(', ')} WHERE id = ?`,
+      params
+    );
 
-      if (result.affectedRows === 0) {
-        throw new AppError('Swimsuit not found', 404);
-      }
-
-      return this.getSwimsuitById(id);
-    } catch (error: any) {
-      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new AppError('Character not found', 404);
-      }
-      throw new AppError('Failed to update swimsuit', 500);
-    }
+    return this.getSwimsuitById(id);
   }
 
   async deleteSwimsuit(id: string): Promise<void> {
-    const [result] = await executeQuery('DELETE FROM swimsuits WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
-    if (result.affectedRows === 0) {
-      throw new AppError('Swimsuit not found', 404);
-    }
+    await executeQuery('DELETE FROM swimsuits WHERE id = ?', [id]);
   }
 
   // Girls CRUD
   async createGirl(girl: NewGirl): Promise<Girl> {
     try {
-      const [result] = await executeQuery(
+      await executeQuery(
         `INSERT INTO girls (id, name, type, level, pow, tec, stm, apl, max_pow, max_tec, max_stm, max_apl, birthday, swimsuit_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [girl.id, girl.name, girl.type, girl.level, girl.pow, girl.tec, girl.stm, girl.apl, girl.maxPow, girl.maxTec, girl.maxStm, girl.maxApl, girl.birthday, girl.swimsuitId]
-      ) as [mysql.ResultSetHeader, any];
+      );
 
       // Get the inserted record
       const [rows] = await executeQuery(
@@ -467,40 +439,26 @@ export class DatabaseService {
     setClause.push(`updated_at = NOW()`);
     params.push(id);
 
-    try {
-      const [result] = await executeQuery(
-        `UPDATE girls SET ${setClause.join(', ')} WHERE id = ?`,
-        params
-      ) as [mysql.ResultSetHeader, any];
+    await executeQuery(
+      `UPDATE girls SET ${setClause.join(', ')} WHERE id = ?`,
+      params
+    );
 
-      if (result.affectedRows === 0) {
-        throw new AppError('Girl not found', 404);
-      }
-
-      return this.getGirlById(id);
-    } catch (error: any) {
-      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new AppError('Referenced swimsuit not found', 404);
-      }
-      throw new AppError('Failed to update girl', 500);
-    }
+    return this.getGirlById(id);
   }
 
   async deleteGirl(id: string): Promise<void> {
-    const [result] = await executeQuery('DELETE FROM girls WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
-    if (result.affectedRows === 0) {
-      throw new AppError('Girl not found', 404);
-    }
+    await executeQuery('DELETE FROM girls WHERE id = ?', [id]);
   }
 
   // Accessories CRUD
   async createAccessory(accessory: NewAccessory): Promise<Accessory> {
     try {
-      const [result] = await executeQuery(
+      await executeQuery(
         `INSERT INTO accessories (id, name, type, skill_id, pow, tec, stm, apl, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [accessory.id, accessory.name, accessory.type, accessory.skillId, accessory.pow, accessory.tec, accessory.stm, accessory.apl]
-      ) as [mysql.ResultSetHeader, any];
+      );
 
       // Get the inserted record
       const [rows] = await executeQuery(
@@ -567,40 +525,26 @@ export class DatabaseService {
     setClause.push(`updated_at = NOW()`);
     params.push(id);
 
-    try {
-      const [result] = await executeQuery(
-        `UPDATE accessories SET ${setClause.join(', ')} WHERE id = ?`,
-        params
-      ) as [mysql.ResultSetHeader, any];
+    await executeQuery(
+      `UPDATE accessories SET ${setClause.join(', ')} WHERE id = ?`,
+      params
+    );
 
-      if (result.affectedRows === 0) {
-        throw new AppError('Accessory not found', 404);
-      }
-
-      return this.getAccessoryById(id);
-    } catch (error: any) {
-      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new AppError('Referenced skill not found', 404);
-      }
-      throw new AppError('Failed to update accessory', 500);
-    }
+    return this.getAccessoryById(id);
   }
 
   async deleteAccessory(id: string): Promise<void> {
-    const [result] = await executeQuery('DELETE FROM accessories WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
-    if (result.affectedRows === 0) {
-      throw new AppError('Accessory not found', 404);
-    }
+    await executeQuery('DELETE FROM accessories WHERE id = ?', [id]);
   }
 
   // Venus Board CRUD
   async createVenusBoard(venusBoard: NewVenusBoard): Promise<VenusBoard> {
     try {
-      const [result] = await executeQuery(
+      await executeQuery(
         `INSERT INTO venus_boards (girl_id, pow, tec, stm, apl, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
         [venusBoard.girlId, venusBoard.pow, venusBoard.tec, venusBoard.stm, venusBoard.apl]
-      ) as [mysql.ResultSetHeader, any];
+      );
 
       // Get the inserted record
       const [rows] = await executeQuery(
@@ -665,30 +609,16 @@ export class DatabaseService {
     setClause.push(`updated_at = NOW()`);
     params.push(id);
 
-    try {
-      const [result] = await executeQuery(
-        `UPDATE venus_boards SET ${setClause.join(', ')} WHERE id = ?`,
-        params
-      ) as [mysql.ResultSetHeader, any];
+    await executeQuery(
+      `UPDATE venus_boards SET ${setClause.join(', ')} WHERE id = ?`,
+      params
+    );
 
-      if (result.affectedRows === 0) {
-        throw new AppError('Venus Board not found', 404);
-      }
-
-      return this.getVenusBoardById(id);
-    } catch (error: any) {
-      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new AppError('Referenced girl not found', 404);
-      }
-      throw new AppError('Failed to update Venus Board', 500);
-    }
+    return this.getVenusBoardById(id);
   }
 
   async deleteVenusBoard(id: number): Promise<void> {
-    const [result] = await executeQuery('DELETE FROM venus_boards WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
-    if (result.affectedRows === 0) {
-      throw new AppError('Venus Board not found', 404);
-    }
+    await executeQuery('DELETE FROM venus_boards WHERE id = ?', [id]);
   }
 
   // Health check
@@ -794,170 +724,45 @@ export class DatabaseService {
     };
   }
 
-  // Girls related methods
-  async getGirls({ page = 1, limit = 10, sort = 'name', order = 'asc', search, rarity, type }) {
-    const offset = (page - 1) * limit;
-    let query = 'SELECT * FROM girls';
-    const params = [];
-
-    if (search || rarity || type) {
-      query += ' WHERE';
-      if (search) {
-        query += ' name LIKE ?';
-        params.push(`%${search}%`);
-      }
-      if (rarity) {
-        query += search ? ' AND' : '';
-        query += ' rarity = ?';
-        params.push(rarity);
-      }
-      if (type) {
-        query += (search || rarity) ? ' AND' : '';
-        query += ' type = ?';
-        params.push(type);
-      }
-    }
-
-    query += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    const [rows] = await this.pool.query(query, params);
-    const [total] = await this.pool.query('SELECT COUNT(*) as count FROM girls');
-
-    return {
-      success: true,
-      data: rows,
-      pagination: {
-        total: total[0].count,
-        page,
-        limit,
-        pages: Math.ceil(total[0].count / limit)
-      }
-    };
-  }
-
-  async getGirlSkills(girlId) {
+  // Additional helper methods for specific use cases
+  async getGirlSkills(girlId: string): Promise<any[]> {
     const [rows] = await this.pool.query(
       'SELECT s.* FROM skills s JOIN girl_skills gs ON s.id = gs.skill_id WHERE gs.girl_id = ?',
       [girlId]
     );
-    return rows;
+    return rows as any[];
   }
 
-  async getGirlSwimsuits(girlId) {
+  async getGirlSwimsuits(girlId: string): Promise<any[]> {
     const [rows] = await this.pool.query(
       'SELECT s.* FROM swimsuits s JOIN girl_swimsuits gs ON s.id = gs.swimsuit_id WHERE gs.girl_id = ?',
       [girlId]
     );
-    return rows;
+    return rows as any[];
   }
 
-  // Accessories related methods
-  async getAccessories({ page = 1, limit = 10, sort = 'name', order = 'asc', search, rarity, type }) {
-    const offset = (page - 1) * limit;
-    let query = 'SELECT * FROM accessories';
-    const params = [];
-
-    if (search || rarity || type) {
-      query += ' WHERE';
-      if (search) {
-        query += ' name LIKE ?';
-        params.push(`%${search}%`);
-      }
-      if (rarity) {
-        query += search ? ' AND' : '';
-        query += ' rarity = ?';
-        params.push(rarity);
-      }
-      if (type) {
-        query += (search || rarity) ? ' AND' : '';
-        query += ' type = ?';
-        params.push(type);
-      }
-    }
-
-    query += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    const [rows] = await this.pool.query(query, params);
-    const [total] = await this.pool.query('SELECT COUNT(*) as count FROM accessories');
-
-    return {
-      success: true,
-      data: rows,
-      pagination: {
-        total: total[0].count,
-        page,
-        limit,
-        pages: Math.ceil(total[0].count / limit)
-      }
-    };
-  }
-
-  async getAccessoryCompatibleGirls(accessoryId) {
+  async getAccessoryCompatibleGirls(accessoryId: string): Promise<any[]> {
     const [rows] = await this.pool.query(
       'SELECT g.* FROM girls g JOIN accessory_girls ag ON g.id = ag.girl_id WHERE ag.accessory_id = ?',
       [accessoryId]
     );
-    return rows;
+    return rows as any[];
   }
 
-  // Venus Boards related methods
-  async getVenusBoards({ page = 1, limit = 10, sort = 'name', order = 'asc', search, rarity, type }) {
-    const offset = (page - 1) * limit;
-    let query = 'SELECT * FROM venus_boards';
-    const params = [];
-
-    if (search || rarity || type) {
-      query += ' WHERE';
-      if (search) {
-        query += ' name LIKE ?';
-        params.push(`%${search}%`);
-      }
-      if (rarity) {
-        query += search ? ' AND' : '';
-        query += ' rarity = ?';
-        params.push(rarity);
-      }
-      if (type) {
-        query += (search || rarity) ? ' AND' : '';
-        query += ' type = ?';
-        params.push(type);
-      }
-    }
-
-    query += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-
-    const [rows] = await this.pool.query(query, params);
-    const [total] = await this.pool.query('SELECT COUNT(*) as count FROM venus_boards');
-
-    return {
-      success: true,
-      data: rows,
-      pagination: {
-        total: total[0].count,
-        page,
-        limit,
-        pages: Math.ceil(total[0].count / limit)
-      }
-    };
-  }
-
-  async getVenusBoardCompatibleGirls(venusBoardId) {
+  async getVenusBoardCompatibleGirls(venusBoardId: number): Promise<any[]> {
     const [rows] = await this.pool.query(
       'SELECT g.* FROM girls g JOIN venus_board_girls vbg ON g.id = vbg.girl_id WHERE vbg.venus_board_id = ?',
       [venusBoardId]
     );
-    return rows;
+    return rows as any[];
   }
 
-  async getVenusBoardSkills(venusBoardId) {
+  async getVenusBoardSkills(venusBoardId: number): Promise<any[]> {
     const [rows] = await this.pool.query(
       'SELECT s.* FROM skills s JOIN venus_board_skills vbs ON s.id = vbs.skill_id WHERE vbs.venus_board_id = ?',
       [venusBoardId]
     );
-    return rows;
+    return rows as any[];
   }
 }
 

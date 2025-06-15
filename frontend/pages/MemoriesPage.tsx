@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Calendar,
   Camera} from 'lucide-react';
+import React from 'react';
 
 interface Memory {
   id: string;
@@ -107,7 +108,7 @@ interface MemoryCardProps {
   onToggleFavorite: (id: string) => void;
 }
 
-function MemoryCard({ memory }: MemoryCardProps) {
+const MemoryCard = React.memo(function MemoryCard({ memory, onToggleFavorite }: MemoryCardProps) {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -197,7 +198,7 @@ function MemoryCard({ memory }: MemoryCardProps) {
       </div>
     </motion.div>
   );
-}
+});
 
 export default function MemoriesPage() {
   const [memories, setMemories] = useState<Memory[]>(mockMemories);
@@ -259,11 +260,11 @@ export default function MemoriesPage() {
     });
   }, [memories, filter, sortBy, sortDirection]);
 
-  const totalPages = Math.ceil(filteredAndSortedMemories.length / itemsPerPage);
-  const paginatedMemories = filteredAndSortedMemories.slice(
+  const totalPages = useMemo(() => Math.ceil(filteredAndSortedMemories.length / itemsPerPage), [filteredAndSortedMemories.length, itemsPerPage]);
+  const paginatedMemories = useMemo(() => filteredAndSortedMemories.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
-  );
+  ), [filteredAndSortedMemories, currentPage, itemsPerPage]);
 
   const characters = [...new Set(memories.flatMap(m => m.characters))].sort();
   const types = ['photo', 'video', 'story', 'scene'];

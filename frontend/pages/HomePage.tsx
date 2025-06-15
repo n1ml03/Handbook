@@ -1,10 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Database, 
   Shield,
   Calendar,
   Sparkles,
-  Activity,
   ChevronDown,
   ChevronUp,
   Search,
@@ -20,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { useUpdateLogs } from '@/contexts/UpdateLogsContext';
 
 // Enhanced Update Log Component
-const UpdateLog: React.FC = () => {
+function UpdateLog() {
   const { publishedUpdateLogs, isLoading } = useUpdateLogs();
   const [expandedUpdate, setExpandedUpdate] = useState<string | null>('2.1.0');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -241,7 +240,7 @@ const UpdateLog: React.FC = () => {
       </div>
     </div>
   );
-};
+}
 
 export default function HomePage() {
 

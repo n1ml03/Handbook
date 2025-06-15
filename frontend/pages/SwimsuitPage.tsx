@@ -9,7 +9,7 @@ import {
   Filter,
   RefreshCw,
   Calendar, 
-  RotateCcw, 
+  RotateCcw,
   Star, 
   Crown, 
   Award, 
@@ -17,6 +17,7 @@ import {
   User
 } from 'lucide-react';
 import { swimsuitsData, type Swimsuit } from '@/data';
+import React from 'react';
 
 // SwimsuitCard Component
 interface SwimsuitCardProps {
@@ -81,7 +82,7 @@ const RarityBadge = ({ rarity }: { rarity: string }) => {
   );
 };
 
-function SwimsuitCard({ swimsuit, viewMode = 'gallery' }: SwimsuitCardProps) {
+const SwimsuitCard = React.memo(function SwimsuitCard({ swimsuit, viewMode = 'gallery' }: SwimsuitCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   
   const maxStat = Math.max(swimsuit.stats.pow, swimsuit.stats.tec, swimsuit.stats.stm, swimsuit.stats.apl);
@@ -428,7 +429,7 @@ function SwimsuitCard({ swimsuit, viewMode = 'gallery' }: SwimsuitCardProps) {
       <div className="absolute inset-0 rounded-xl border border-accent-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
     </motion.div>
   );
-}
+});
 
 type SortDirection = 'asc' | 'desc';
 type SortOption = 'name' | 'character' | 'rarity' | 'pow' | 'tec' | 'stm' | 'apl' | 'total' | 'release';
@@ -530,10 +531,10 @@ export default function SwimsuitPage() {
     currentPage * itemsPerPage
   );
 
-  const characters = [...new Set(swimsuits.map(s => s.character))].sort();
-  const rarities = ['SSR', 'SR', 'R'];
-  const releaseYears = [...new Set(swimsuits.map(s => s.release.split('-')[0]))].sort().reverse();
-  const versions = ['1.0', '1.5', '2.0', '2.5', '3.0'];
+  const characters = useMemo(() => [...new Set(swimsuits.map(s => s.character))].sort(), [swimsuits]);
+  const rarities = useMemo(() => ['SSR', 'SR', 'R'], []);
+  const releaseYears = useMemo(() => [...new Set(swimsuits.map(s => s.release.split('-')[0]))].sort().reverse(), [swimsuits]);
+  const versions = useMemo(() => ['1.0', '1.5', '2.0', '2.5', '3.0'], []);
 
   const handleSortChange = (newSortBy: SortOption) => {
     if (sortBy === newSortBy) {

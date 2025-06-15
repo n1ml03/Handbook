@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Gem,
   Shirt,
@@ -19,6 +20,7 @@ import {
   accessoriesData,
   skillsData,
   bromidesData} from '@/data';
+import React from 'react';
 
 type ItemType = 'all' | 'swimsuit' | 'accessory' | 'skill' | 'bromide';
 
@@ -45,7 +47,7 @@ interface UnifiedItem {
   };
 }
 
-const ItemsPage: React.FC = () => {
+export default function ItemsPage() {
   // State management
   const [selectedLanguage, setSelectedLanguage] = useState<Language>('EN');
   const [showFilters, setShowFilters] = useState(false);
@@ -135,14 +137,25 @@ const ItemsPage: React.FC = () => {
       // Type filter
       const typeMatch = filterValues.type === 'all' || item.type === filterValues.type;
 
-      // Text search (multi-language)
+      // Text search (multi-language) - Search across ALL languages
       const searchText = (filterValues.search || '').toLowerCase();
-      const translation = item.translations?.[selectedLanguage];
-      const nameMatch = !searchText ||
-        item.name.toLowerCase().includes(searchText) ||
-        (translation?.name.toLowerCase().includes(searchText)) ||
-        (item.description?.toLowerCase().includes(searchText)) ||
-        (translation?.description?.toLowerCase().includes(searchText));
+      
+      if (!searchText) {
+        var nameMatch = true;
+      } else {
+        // Search in original name and description
+        const originalNameMatch = item.name.toLowerCase().includes(searchText);
+        const originalDescMatch = item.description?.toLowerCase().includes(searchText) || false;
+        
+        // Search across ALL language translations
+        const translationMatches = Object.values(item.translations || {}).some(translation => {
+          const nameMatch = translation?.name?.toLowerCase().includes(searchText) || false;
+          const descMatch = translation?.description?.toLowerCase().includes(searchText) || false;
+          return nameMatch || descMatch;
+        });
+        
+        var nameMatch = originalNameMatch || originalDescMatch || translationMatches;
+      }
 
       // Rarity filter
       const rarityMatch = !filterValues.rarity || item.rarity === filterValues.rarity;
@@ -159,8 +172,8 @@ const ItemsPage: React.FC = () => {
 
       switch (sortBy) {
         case 'name':
-          const aName = a.translations?.[selectedLanguage]?.name || a.name;
-          const bName = b.translations?.[selectedLanguage]?.name || b.name;
+          const aName = a.translations?.['EN']?.name || a.name;
+          const bName = b.translations?.['EN']?.name || b.name;
           comparison = aName.localeCompare(bName);
           break;
         case 'type':
@@ -182,7 +195,7 @@ const ItemsPage: React.FC = () => {
     });
 
     return filtered;
-  }, [unifiedItems, filterValues, selectedLanguage, sortBy, sortDirection]);
+  }, [unifiedItems, filterValues, sortBy, sortDirection]);
 
   // Get unique values for filters
   const uniqueRarities = useMemo(() =>
@@ -196,7 +209,7 @@ const ItemsPage: React.FC = () => {
       key: 'search',
       label: 'Search',
       type: 'text',
-      placeholder: `Search items in ${selectedLanguage}...`,
+      placeholder: 'Search items in all languages...',
       icon: <Search className="w-3 h-3 mr-1" />,
     },
     {
@@ -229,7 +242,7 @@ const ItemsPage: React.FC = () => {
       options: uniqueCharacters.map(c => ({ value: c!, label: c! })),
       icon: <User className="w-3 h-3 mr-1" />,
     }
-  ], [selectedLanguage, uniqueRarities, uniqueCharacters]);
+  ], [uniqueRarities, uniqueCharacters]);
 
   // Sort options
   const sortOptions: UnifiedSortOption[] = [
@@ -290,90 +303,171 @@ const ItemsPage: React.FC = () => {
     setSortDirection(direction);
   };
 
-
-
   // Item card component
-  const ItemCard = ({ item }: { item: UnifiedItem }) => {
-    const translation = item.translations?.[selectedLanguage];
+  const ItemCard = React.memo(function ItemCard({ item }: { item: UnifiedItem }) {
+    const translation = item.translations?.['EN'];
     const displayName = translation?.name || item.name;
     const displayDescription = translation?.description || item.description;
 
+    // Language flag emojis with names
+    const languageInfo = {
+      EN: { flag: '🇺🇸', name: 'EN' },
+      CN: { flag: '🇨🇳', name: 'CN' },
+      TW: { flag: '🇹🇼', name: 'TW' },
+      KO: { flag: '🇰🇷', name: 'KO' },
+      JP: { flag: '🇯🇵', name: 'JP' }
+    };
+
     return (
-      <div className="doax-card hover:border-accent-cyan/50 transition-all duration-200 cursor-pointer group">
-        <div className="flex items-start gap-4 mb-4">
-          {/* Item Icon */}
-          <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted/50 flex-shrink-0 border border-border/30 flex items-center justify-center">
-            {item.image ? (
-              <img
-                src={item.image}
-                alt={displayName}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const fallback = target.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div
-              className={cn(
-                'w-full h-full flex items-center justify-center text-muted-foreground',
-                item.image ? 'hidden' : 'flex'
-              )}
-            >
-              {getTypeIcon(item.type)}
-            </div>
-          </div>
-
-          {/* Item Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="font-semibold text-foreground text-sm truncate group-hover:text-accent-cyan transition-colors">
-                {displayName}
-              </h3>
+      <motion.div
+        whileHover={{ scale: 1.02, y: -5 }}
+        className="relative bg-card/80 backdrop-blur-sm border border-border/30 rounded-xl p-6 mt-2 overflow-hidden group cursor-pointer"
+      >
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-br from-accent-pink/5 via-accent-cyan/5 to-accent-purple/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-accent-cyan/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        <div className="relative z-10">
+          {/* Header Section */}
+          <div className="flex items-start gap-4 mb-6">
+            {/* Enhanced Item Icon */}
+            <div className="relative">
+              <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-muted/60 to-muted/40 flex-shrink-0 border-2 border-border/20 flex items-center justify-center group-hover:border-accent-cyan/20 transition-all duration-200">
+                {item.image ? (
+                  <img
+                    src={item.image}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={cn(
+                    'w-full h-full flex items-center justify-center text-muted-foreground',
+                    item.image ? 'hidden' : 'flex'
+                  )}
+                >
+                  {getTypeIcon(item.type)}
+                </div>
+              </div>
+              
+              {/* Rarity badge - positioned as overlay */}
               {item.rarity && (
-                <Badge className={cn('text-xs font-medium flex-shrink-0', getRarityColor(item.rarity))}>
-                  <Star className="w-3 h-3 mr-1" />
-                  {item.rarity}
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 mb-3">
-              <Badge variant="outline" className={cn('text-xs', getTypeColor(item.type))}>
-                {getTypeIcon(item.type)}
-                <span className="ml-1 capitalize">{item.type}</span>
-              </Badge>
-              {item.character && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <User className="w-3 h-3" />
-                  <span>{item.character}</span>
+                <div className="absolute -top-2 -right-2">
+                  <Badge className={cn('text-xs font-bold shadow-lg', getRarityColor(item.rarity))}>
+                    <Star className="w-3 h-3 mr-1" />
+                    {item.rarity}
+                  </Badge>
                 </div>
               )}
             </div>
 
-            {displayDescription && (
-              <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                {displayDescription}
-              </p>
+            {/* Item Type Badge */}
+            <div className="flex-1 min-w-0">
+              <Badge variant="outline" className={cn('text-xs mb-3 shadow-sm', getTypeColor(item.type))}>
+                {getTypeIcon(item.type)}
+                <span className="ml-1 capitalize font-medium">{item.type}</span>
+              </Badge>
+            </div>
+          </div>
+
+          {/* Name Section - Enhanced Visual */}
+          <div className="mb-6">
+            {/* Primary Name with modern styling */}
+            <div className="mb-4 p-4 bg-gradient-to-r from-accent-cyan/5 via-accent-cyan/10 to-transparent rounded-lg border border-accent-cyan/10 group-hover:border-accent-cyan/15 transition-all duration-200">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-accent-cyan rounded-full"></div>
+                <span className="text-xs font-medium text-accent-cyan/80 uppercase tracking-wider">
+                  Primary (EN)
+                </span>
+              </div>
+              <h3 className="font-bold text-foreground text-lg leading-tight">
+                {displayName}
+              </h3>
+            </div>
+            
+            {/* All Language Translations - Enhanced Cards */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-1 bg-muted-foreground rounded-full"></div>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Other Languages
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-2">
+                {Object.entries(languageInfo).map(([lang, info]) => {
+                  const langTranslation = item.translations?.[lang as Language];
+                  const langName = langTranslation?.name || item.name;
+                  
+                  // Skip if it's the same as the primary name to avoid duplication
+                  if (lang === 'EN') return null;
+                  
+                  return (
+                    <div 
+                      key={lang} 
+                      className="flex items-center gap-3 p-3 bg-card/40 rounded-lg border border-border/20 hover:bg-card/50 transition-colors duration-200"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm flex-shrink-0">{info.flag}</span>
+                        <span className="text-xs font-medium text-muted-foreground/60 bg-muted/30 px-2 py-1 rounded-md">
+                          {info.name}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-foreground/90 flex-1 min-w-0 truncate">
+                        {langName}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Character & Description */}
+          <div className="space-y-3 mb-6">
+            {item.character && (
+              <div className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg border border-border/10">
+                <User className="w-4 h-4 text-accent-cyan" />
+                <span className="text-sm font-medium text-foreground">{item.character}</span>
+              </div>
             )}
 
-            {item.stats && (
-              <div className="grid grid-cols-2 gap-1 text-xs">
-                {Object.entries(item.stats).slice(0, 4).map(([stat, value]) => (
-                  <div key={stat} className="flex justify-between">
-                    <span className="text-muted-foreground uppercase">{stat}:</span>
-                    <span className="font-medium text-accent-cyan">{value}</span>
-                  </div>
-                ))}
+            {displayDescription && (
+              <div className="p-3 bg-muted/10 rounded-lg border border-border/10">
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                  {displayDescription}
+                </p>
               </div>
             )}
           </div>
+
+          {/* Stats Section - Enhanced */}
+          {item.stats && (
+            <div className="p-4 bg-gradient-to-br from-accent-cyan/5 to-transparent rounded-lg border border-accent-cyan/10">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-4 h-4 text-accent-cyan" />
+                <span className="text-sm font-semibold text-foreground">Stats</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(item.stats).slice(0, 4).map(([stat, value]) => (
+                  <div key={stat} className="flex justify-between items-center p-2 bg-card/40 rounded-md border border-border/10">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{stat}</span>
+                    <span className="font-bold text-accent-cyan text-sm">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </motion.div>
     );
-  };
+  });
 
   return (
     <Container>
@@ -382,25 +476,9 @@ const ItemsPage: React.FC = () => {
         title="Items Collection"
         description={`Browse and search through ${unifiedItems.length} items with multi-language support`}
         action={
-          <div className="flex items-center gap-3">
-            <StatusBadge status="info">
-              {filteredAndSortedItems.length} found
-            </StatusBadge>
-            <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm p-3 rounded-lg border border-border/50">
-              <span className="text-sm font-medium text-muted-foreground">Language:</span>
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value as Language)}
-                className="bg-background/80 border border-border/50 rounded-md px-2 py-1 text-sm focus:outline-none focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan/20 transition-all"
-              >
-                <option value="EN">🇺🇸 EN</option>
-                <option value="CN">🇨🇳 CN</option>
-                <option value="TW">🇹🇼 TW</option>
-                <option value="KO">🇰🇷 KO</option>
-                <option value="JP">🇯🇵 JP</option>
-              </select>
-            </div>
-          </div>
+          <StatusBadge status="info">
+            {filteredAndSortedItems.length} found
+          </StatusBadge>
         }
       />
 
@@ -417,7 +495,6 @@ const ItemsPage: React.FC = () => {
         sortDirection={sortDirection}
         onSortChange={handleSortChange}
         resultCount={filteredAndSortedItems.length}
-        totalCount={unifiedItems.length}
         itemLabel="items"
         accentColor="accent-pink"
         secondaryColor="accent-purple"
@@ -426,7 +503,7 @@ const ItemsPage: React.FC = () => {
       />
 
       {/* Items Grid */}
-      <Grid cols={3} gap="md">
+      <Grid cols={3} gap="md" className="pt-2">
         {filteredAndSortedItems.length === 0 ? (
           <div className="col-span-full doax-card p-12 text-center">
             <div className="w-16 h-16 mx-auto mb-4 bg-muted/50 rounded-full flex items-center justify-center">
@@ -449,6 +526,4 @@ const ItemsPage: React.FC = () => {
       </Grid>
     </Container>
   );
-};
-
-export default ItemsPage; 
+} 

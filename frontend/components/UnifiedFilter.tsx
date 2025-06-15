@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, ChevronRight, SortAsc, Zap, X } from 'lucide-react';
 
@@ -49,7 +48,6 @@ export interface UnifiedFilterProps {
   
   // Display configuration
   resultCount: number;
-  totalCount: number;
   itemLabel?: string; // e.g., "accessories", "swimsuits"
   
   // Theme and styling
@@ -68,7 +66,7 @@ export interface UnifiedFilterProps {
   className?: string;
 }
 
-export const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
+export const UnifiedFilter = ({
   showFilters,
   setShowFilters,
   filterFields,
@@ -80,7 +78,6 @@ export const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
   sortDirection,
   onSortChange,
   resultCount,
-  totalCount,
   itemLabel = "items",
   accentColor = "accent-cyan",
   secondaryColor = "accent-purple",
@@ -91,20 +88,10 @@ export const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
   additionalFilters,
   headerIcon,
   className = ""
-}) => {
+}: UnifiedFilterProps) => {
   // Split filter fields into main and expandable sections
   const mainFields = filterFields.filter(field => !field.key.startsWith('min') || !expandableStats);
   const expandableFields = expandableStats ? filterFields.filter(field => field.key.startsWith('min')) : [];
-
-  const getStatColor = (statType: string) => {
-    switch (statType.toLowerCase()) {
-      case 'pow': return 'text-red-400';
-      case 'tec': return 'text-blue-400';
-      case 'stm': return 'text-green-400';
-      case 'apl': return 'text-yellow-400';
-      default: return `text-${accentColor}`;
-    }
-  };
 
   const handleSortClick = (key: string) => {
     if (sortBy === key) {
