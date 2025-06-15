@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 /**
- * Data Migration Script: PostgreSQL to SQL Server
- * 
- * This script helps migrate data from PostgreSQL to SQL Server.
+ * Data Migration Script: PostgreSQL to MySQL
+ *
+ * This script helps migrate data from PostgreSQL to MySQL.
  * Run this after setting up both databases.
  */
 
 import { config } from 'dotenv';
 config();
 
-import * as sql from 'mssql';
+import mysql from 'mysql2/promise';
 import { Pool } from 'pg';
 import logger from '../config/logger';
 
@@ -22,18 +22,17 @@ const pgConfig = {
   password: process.env.PG_PASSWORD || 'doaxvv_password',
 };
 
-// SQL Server connection (destination)
-const sqlConfig = {
-  server: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '1433'),
+// MySQL connection (destination)
+const mysqlConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
   database: process.env.DB_NAME || 'doaxvv_handbook',
   user: process.env.DB_USER || 'doaxvv_user',
   password: process.env.DB_PASSWORD || 'doaxvv_password',
-  options: {
-    encrypt: process.env.NODE_ENV === 'production',
-    trustServerCertificate: process.env.NODE_ENV !== 'production',
-    enableArithAbort: true,
-  },
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : undefined,
+  charset: 'utf8mb4',
 };
 
 interface MigrationTable {
@@ -81,18 +80,20 @@ const tables: MigrationTable[] = [
 
 class DataMigrator {
   private pgPool: Pool;
-  private sqlPool: sql.ConnectionPool;
+  private mysqlPool: mysql.Pool;
 
   constructor() {
     this.pgPool = new Pool(pgConfig);
-    this.sqlPool = new sql.ConnectionPool(sqlConfig);
+    this.mysqlPool = mysql.createPool(mysqlConfig);
   }
 
   async connect(): Promise<void> {
     try {
-      await this.sqlPool.connect();
-      logger.info('Connected to SQL Server');
-      
+      // Test MySQL connection
+      const mysqlConnection = await this.mysqlPool.getConnection();
+      mysqlConnection.release();
+      logger.info('Connected to MySQL');
+
       // Test PostgreSQL connection
       const pgClient = await this.pgPool.connect();
       pgClient.release();
@@ -106,7 +107,7 @@ class DataMigrator {
   async disconnect(): Promise<void> {
     try {
       await this.pgPool.end();
-      await this.sqlPool.close();
+      await this.mysqlPool.end();
       logger.info('Disconnected from databases');
     } catch (error) {
       logger.error('Error disconnecting from databases:', error);
@@ -153,31 +154,24 @@ class DataMigrator {
 
       logger.info(`Found ${pgResult.rows.length} rows in ${table.name}`);
 
-      // Clear existing data in SQL Server (optional)
-      const deleteRequest = this.sqlPool.request();
-      await deleteRequest.query(`DELETE FROM ${table.name}`);
-      
-      // Reset identity if needed
+      // Clear existing data in MySQL (optional)
+      await this.mysqlPool.execute(`DELETE FROM ${table.name}`);
+
+      // Reset auto_increment if needed
       if (table.identityColumn) {
-        await deleteRequest.query(`DBCC CHECKIDENT ('${table.name}', RESEED, 0)`);
+        await this.mysqlPool.execute(`ALTER TABLE ${table.name} AUTO_INCREMENT = 1`);
       }
 
-      // Insert data into SQL Server
+      // Insert data into MySQL
       for (const row of pgResult.rows) {
-        const insertRequest = this.sqlPool.request();
-        
-        // Add parameters
-        table.columns.forEach(column => {
-          const value = this.convertValue(row[column], column);
-          insertRequest.input(column, value);
-        });
+        const values = table.columns.map(column => this.convertValue(row[column], column));
 
         // Build insert query
         const columnsList = table.columns.join(', ');
-        const valuesList = table.columns.map(col => `@${col}`).join(', ');
-        const insertQuery = `INSERT INTO ${table.name} (${columnsList}) VALUES (${valuesList})`;
+        const placeholders = table.columns.map(() => '?').join(', ');
+        const insertQuery = `INSERT INTO ${table.name} (${columnsList}) VALUES (${placeholders})`;
 
-        await insertRequest.query(insertQuery);
+        await this.mysqlPool.execute(insertQuery, values);
       }
 
       logger.info(`Successfully migrated ${pgResult.rows.length} rows to ${table.name}`);

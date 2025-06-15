@@ -1,32 +1,39 @@
-// Script to help convert remaining PostgreSQL queries to SQL Server
+// Script to help convert remaining PostgreSQL/SQL Server queries to MySQL
 // This is a reference for manual conversion of the remaining CRUD operations
 
 export const conversionPatterns = {
   // Parameter placeholders
   postgresParams: /\$(\d+)/g,
-  sqlServerParams: '@param$1',
-  
+  sqlServerParams: /@(\w+)/g,
+  mysqlParams: '?',
+
   // Data types mapping
   dataTypes: {
-    'VARCHAR': 'NVARCHAR',
-    'TEXT': 'NVARCHAR(MAX)',
-    'SERIAL': 'IDENTITY(1,1)',
-    'TIMESTAMP': 'DATETIME2',
-    'BOOLEAN': 'BIT',
-    'JSONB': 'NVARCHAR(MAX)', // Store as JSON string
+    'NVARCHAR': 'VARCHAR',
+    'NVARCHAR(MAX)': 'TEXT',
+    'TEXT': 'TEXT',
+    'SERIAL': 'AUTO_INCREMENT',
+    'IDENTITY(1,1)': 'AUTO_INCREMENT',
+    'DATETIME2': 'DATETIME',
+    'TIMESTAMP': 'DATETIME',
+    'BIT': 'BOOLEAN',
+    'JSONB': 'JSON', // MySQL has native JSON support
   },
-  
+
   // Function mappings
   functions: {
-    'NOW()': 'GETDATE()',
-    'CURRENT_TIMESTAMP': 'GETDATE()',
-    'RETURNING *': 'OUTPUT INSERTED.*',
+    'GETDATE()': 'NOW()',
+    'CURRENT_TIMESTAMP': 'NOW()',
+    'OUTPUT INSERTED.*': '', // MySQL doesn't support this, use separate SELECT
+    'RETURNING *': '', // MySQL doesn't support this, use separate SELECT
   },
-  
+
   // Error code mappings
   errorCodes: {
-    '23505': 2627, // Unique constraint violation
-    '23503': 547,  // Foreign key constraint violation
+    '23505': 'ER_DUP_ENTRY', // Unique constraint violation
+    '23503': 'ER_NO_REFERENCED_ROW_2', // Foreign key constraint violation
+    '2627': 'ER_DUP_ENTRY', // SQL Server unique constraint to MySQL
+    '547': 'ER_NO_REFERENCED_ROW_2', // SQL Server FK constraint to MySQL
   },
   
   // Result object mappings

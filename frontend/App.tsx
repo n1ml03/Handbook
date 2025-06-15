@@ -1,6 +1,7 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useTheme } from './lib/useTheme';
+import { DocumentsProvider } from '@/contexts/DocumentsContext';
 
 // Layout Components - Optimized with performance improvements
 import Header from './components/Header';
@@ -35,72 +36,78 @@ const LoadingFallback: React.FC = () => (
   </div>
 );
 
-function App() {
+interface AppProps {
+  children: ReactNode;
+}
+
+function App({ children }: AppProps) {
   // Use theme hook to handle theme application
   useTheme();
 
   return (
-    <AccessibilityProvider>
-      <UpdateLogsProvider>
-        <Router
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true
-          }}
-        >
-        <div className="min-h-screen bg-background font-sans antialiased">
-          {/* Skip Links for Accessibility */}
-          <SkipLink href="#main-content">Skip to main content</SkipLink>
-          <SkipLink href="#header-nav">Skip to navigation</SkipLink>
-
-          {/* Enhanced Background Pattern*/}
-          <div className="fixed inset-0 opacity-[0.015] pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent-pink/8 via-accent-cyan/8 to-accent-purple/8" />
-            <div className="absolute inset-0" style={{
-              backgroundImage: `radial-gradient(circle at 25% 25%, rgba(233, 30, 99, 0.08) 0%, transparent 25%),
-                               radial-gradient(circle at 75% 75%, rgba(0, 188, 212, 0.08) 0%, transparent 25%)`
-            }} />
-          </div>
-
-          {/* Header Navigation */}
-          <Header />
-          
-          {/* Main Content */}
-          <main 
-            id="main-content"
-            className="flex-1 overflow-x-hidden"
-            style={{
-              scrollBehavior: 'smooth'
+    <DocumentsProvider>
+      <AccessibilityProvider>
+        <UpdateLogsProvider>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
             }}
           >
-            <div className="container mx-auto px-4 py-6">
-              <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/home" replace />} />
-                  <Route path="/home" element={<HomePage />} />
-                  <Route path="/swimsuit" element={<SwimsuitPage />} />
-                  <Route path="/girls" element={<GirlListPage />} />
-                  <Route path="/girls/:id" element={<GirlDetailPage />} />
-                  <Route path="/skills" element={<SkillsPage />} />
-                  <Route path="/decorate-bromide" element={<DecorateBromidePage />} />
-                  <Route path="/accessory" element={<AccessoryPage />} />
-                  <Route path="/memories" element={<MemoriesPage />} />
-                  <Route path="/owner-room" element={<OwnerRoomPage />} />
-                  <Route path="/items" element={<ItemsPage />} />
-                  <Route path="/shop" element={<ShopPage />} />
-                  <Route path="/festivals" element={<FestivalPage />} />
-                  <Route path="/gacha" element={<GachaPage />} />
-                  <Route path="/documents" element={<DocumentPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              </Suspense>
+          <div className="min-h-screen bg-background font-sans antialiased">
+            {/* Skip Links for Accessibility */}
+            <SkipLink href="#main-content">Skip to main content</SkipLink>
+            <SkipLink href="#header-nav">Skip to navigation</SkipLink>
+
+            {/* Enhanced Background Pattern*/}
+            <div className="fixed inset-0 opacity-[0.015] pointer-events-none">
+              <div className="absolute inset-0 bg-gradient-to-br from-accent-pink/8 via-accent-cyan/8 to-accent-purple/8" />
+              <div className="absolute inset-0" style={{
+                backgroundImage: `radial-gradient(circle at 25% 25%, rgba(233, 30, 99, 0.08) 0%, transparent 25%),
+                                 radial-gradient(circle at 75% 75%, rgba(0, 188, 212, 0.08) 0%, transparent 25%)`
+              }} />
             </div>
-          </main>
-        </div>
-              </Router>
-      </UpdateLogsProvider>
-    </AccessibilityProvider>
+
+            {/* Header Navigation */}
+            <Header />
+            
+            {/* Main Content */}
+            <main 
+              id="main-content"
+              className="flex-1 overflow-x-hidden"
+              style={{
+                scrollBehavior: 'smooth'
+              }}
+            >
+              <div className="container mx-auto px-4 py-6">
+                <Suspense fallback={<LoadingFallback />}>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/home" replace />} />
+                    <Route path="/home" element={<HomePage />} />
+                    <Route path="/swimsuit" element={<SwimsuitPage />} />
+                    <Route path="/girls" element={<GirlListPage />} />
+                    <Route path="/girls/:id" element={<GirlDetailPage />} />
+                    <Route path="/skills" element={<SkillsPage />} />
+                    <Route path="/decorate-bromide" element={<DecorateBromidePage />} />
+                    <Route path="/accessory" element={<AccessoryPage />} />
+                    <Route path="/memories" element={<MemoriesPage />} />
+                    <Route path="/owner-room" element={<OwnerRoomPage />} />
+                    <Route path="/items" element={<ItemsPage />} />
+                    <Route path="/shop" element={<ShopPage />} />
+                    <Route path="/festivals" element={<FestivalPage />} />
+                    <Route path="/gacha" element={<GachaPage />} />
+                    <Route path="/documents" element={<DocumentPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </Suspense>
+              </div>
+            </main>
+          </div>
+          </Router>
+        </UpdateLogsProvider>
+      </AccessibilityProvider>
+    </DocumentsProvider>
   );
 }
 

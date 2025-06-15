@@ -309,5 +309,43 @@ export const eventsData: Event[] = [
       { type: 'tournament', description: 'Defeat 50 celestial challengers', target: 50 },
       { type: 'guardian', description: 'Pass the celestial trials' }
     ]
+  },
+  {
+    id: 'EVT017',
+    name: 'True Colors Outfit Gacha',
+    type: 'gacha',
+    description: 'Discover the true colors of Luna with her exclusive Precious Shine swimsuit! Limited time gacha featuring enhanced SSR rates and Luna Palette x10 included!',
+    startDate: '2024-07-01T00:00:00Z',
+    endDate: '2024-07-31T23:59:59Z',
+    image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&h=400',
+    isActive: true,
+    rewards: [
+      { id: 'R034', name: 'Precious Shine (Luna)', type: 'swimsuit', description: 'SSR Swimsuit with Bronkless', icon: '👙' },
+      { id: 'R035', name: 'Luna Palette', type: 'item', description: 'Special gacha currency x10', icon: '🎨' },
+      { id: 'R036', name: 'F Fever Skill', type: 'skill', description: 'Enhanced fever ability', icon: '⚡' }
+    ],
+    requirements: [
+      { type: 'gacha', description: 'Enhanced SSR rates available', target: 1 },
+      { type: 'guarantee', description: '10x pull guarantee system' }
+    ]
+  },
+  {
+    id: 'EVT018',
+    name: 'Summer Paradise Premium Gacha',
+    type: 'gacha',
+    description: 'Experience the ultimate summer paradise with exclusive tropical swimsuits and beach accessories!',
+    startDate: '2024-08-01T00:00:00Z',
+    endDate: '2024-08-31T23:59:59Z',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&h=400',
+    isActive: true,
+    rewards: [
+      { id: 'R037', name: 'Paradise Queen', type: 'swimsuit', description: 'UR Tropical swimsuit', icon: '👙' },
+      { id: 'R038', name: 'Sunset Crown', type: 'accessory', description: 'Legendary beach accessory', icon: '👑' },
+      { id: 'R039', name: 'Beach Volleyball Pro', type: 'skill', description: 'Enhanced beach skills', icon: '🏐' }
+    ],
+    requirements: [
+      { type: 'gacha', description: 'Premium rates for UR items', target: 1 },
+      { type: 'collection', description: 'Collect summer-themed items' }
+    ]
   }
 ]; 

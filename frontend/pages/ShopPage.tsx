@@ -13,6 +13,7 @@ import {
   Gem
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import UnifiedFilter, { FilterField, SortOption, SortDirection } from '@/components/UnifiedFilter';
 
 interface ShopItem {
   id: string;
@@ -220,9 +221,6 @@ const mockShopItems: ShopItem[] = [
   }
 ];
 
-type SortDirection = 'asc' | 'desc';
-type SortOption = 'name' | 'price' | 'rarity' | 'type';
-
 interface ShopItemCardProps {
   item: ShopItem;
   onPurchase: (id: string) => void;
@@ -351,9 +349,9 @@ export default function ShopPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [activeSection, setActiveSection] = useState<'owner' | 'event' | 'venus' | 'vip'>('owner');
-  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [sortBy, setSortBy] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [filter, setFilter] = useState({
+  const [filterValues, setFilterValues] = useState({
     search: '',
     type: '',
     rarity: '',
@@ -368,23 +366,115 @@ export default function ShopPage() {
 
   const itemsPerPage = 8;
 
+  // Filter fields configuration
+  const filterFields: FilterField[] = [
+    {
+      key: 'search',
+      label: 'Search',
+      type: 'text',
+      placeholder: `Search in ${activeSection} collection...`,
+      icon: <Search className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      type: 'select',
+      placeholder: 'All Types',
+      options: [...new Set(shopItems.map(item => item.type))].sort().map(type => ({
+        value: type,
+        label: type.charAt(0).toUpperCase() + type.slice(1)
+      })),
+      icon: <ShoppingCart className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'rarity',
+      label: 'Rarity',
+      type: 'select',
+      placeholder: 'All Rarities',
+      options: ['common', 'rare', 'epic', 'legendary'].map(rarity => ({
+        value: rarity,
+        label: rarity.charAt(0).toUpperCase() + rarity.slice(1)
+      })),
+      icon: <Gem className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'currency',
+      label: 'Currency',
+      type: 'select',
+      placeholder: 'All Currencies',
+      options: ['coins', 'gems', 'tickets'].map(currency => ({
+        value: currency,
+        label: currency.charAt(0).toUpperCase() + currency.slice(1)
+      })),
+      icon: <Coins className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'priceMin',
+      label: 'Min Price',
+      type: 'number',
+      placeholder: '0',
+      min: 0,
+      icon: <Coins className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'priceMax',
+      label: 'Max Price',
+      type: 'number',
+      placeholder: '999999',
+      min: 0,
+      icon: <Coins className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'inStock',
+      label: 'In Stock Only',
+      type: 'checkbox',
+      icon: <Tag className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'isNew',
+      label: 'New Items',
+      type: 'checkbox',
+      icon: <Tag className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'hasDiscount',
+      label: 'On Sale',
+      type: 'checkbox',
+      icon: <Tag className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'featured',
+      label: 'Featured',
+      type: 'checkbox',
+      icon: <Tag className="w-3 h-3 mr-1" />,
+    }
+  ];
+
+  // Sort options
+  const sortOptions: SortOption[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'price', label: 'Price' },
+    { key: 'rarity', label: 'Rarity' },
+    { key: 'type', label: 'Type' }
+  ];
+
   const filteredAndSortedItems = useMemo(() => {
     let filtered = shopItems.filter(item => {
       // Filter by active section first
       if (item.section !== activeSection) return false;
       
-      if (filter.search && !item.name.toLowerCase().includes(filter.search.toLowerCase()) && 
-          !item.description.toLowerCase().includes(filter.search.toLowerCase())) return false;
+      if (filterValues.search && !item.name.toLowerCase().includes(filterValues.search.toLowerCase()) && 
+          !item.description.toLowerCase().includes(filterValues.search.toLowerCase())) return false;
       
-      if (filter.type && item.type !== filter.type) return false;
-      if (filter.rarity && item.rarity !== filter.rarity) return false;
-      if (filter.currency && item.currency !== filter.currency) return false;
-      if (filter.inStock && !item.inStock) return false;
-      if (filter.isNew && !item.isNew) return false;
-      if (filter.hasDiscount && !item.discount) return false;
-      if (filter.featured && !item.featured) return false;
-      if (filter.priceMin && item.price < parseInt(filter.priceMin)) return false;
-      if (filter.priceMax && item.price > parseInt(filter.priceMax)) return false;
+      if (filterValues.type && item.type !== filterValues.type) return false;
+      if (filterValues.rarity && item.rarity !== filterValues.rarity) return false;
+      if (filterValues.currency && item.currency !== filterValues.currency) return false;
+      if (filterValues.inStock && !item.inStock) return false;
+      if (filterValues.isNew && !item.isNew) return false;
+      if (filterValues.hasDiscount && !item.discount) return false;
+      if (filterValues.featured && !item.featured) return false;
+      if (filterValues.priceMin && item.price < parseInt(filterValues.priceMin)) return false;
+      if (filterValues.priceMax && item.price > parseInt(filterValues.priceMax)) return false;
       
       return true;
     });
@@ -405,6 +495,11 @@ export default function ShopPage() {
           aValue = a.type.toLowerCase();
           bValue = b.type.toLowerCase();
           break;
+        case 'rarity':
+          const rarityOrder = { 'legendary': 4, 'epic': 3, 'rare': 2, 'common': 1 };
+          aValue = rarityOrder[a.rarity as keyof typeof rarityOrder] || 0;
+          bValue = rarityOrder[b.rarity as keyof typeof rarityOrder] || 0;
+          break;
         default:
           aValue = a.name.toLowerCase();
           bValue = b.name.toLowerCase();
@@ -415,7 +510,7 @@ export default function ShopPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [shopItems, filter, sortBy, sortDirection, activeSection]);
+  }, [shopItems, filterValues, sortBy, sortDirection, activeSection]);
 
   const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
   const paginatedItems = filteredAndSortedItems.slice(
@@ -423,26 +518,18 @@ export default function ShopPage() {
     currentPage * itemsPerPage
   );
 
-  const types = [...new Set(shopItems.map(item => item.type))].sort();
-  const rarities = ['common', 'rare', 'epic', 'legendary'];
-  const currencies = ['coins', 'gems', 'tickets'];
-
-  const handlePurchase = (id: string) => {
-    // Handle purchase logic here
-    console.log('Purchasing item:', id);
+  const handleFilterChange = (key: string, value: any) => {
+    setFilterValues(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
   };
 
-  const handleSortChange = (newSortBy: SortOption) => {
-    if (sortBy === newSortBy) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortDirection('asc');
-    }
+  const handleSortChange = (newSortBy: string, newDirection: SortDirection) => {
+    setSortBy(newSortBy);
+    setSortDirection(newDirection);
   };
 
   const clearFilters = () => {
-    setFilter({
+    setFilterValues({
       search: '',
       type: '',
       rarity: '',
@@ -457,29 +544,10 @@ export default function ShopPage() {
     setCurrentPage(1);
   };
 
-  const SortButton = ({ sortKey, children }: { sortKey: SortOption; children: React.ReactNode }) => (
-    <motion.button
-      onClick={() => handleSortChange(sortKey)}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={`flex items-center space-x-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-        sortBy === sortKey 
-          ? 'bg-gradient-to-r from-gray-900 to-black text-white shadow-lg border border-gray-700' 
-          : 'bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-900/50 border border-gray-700/50'
-      }`}
-    >
-      <span>{children}</span>
-      {sortBy === sortKey && (
-        <motion.div
-          initial={{ rotate: 0 }}
-          animate={{ rotate: sortDirection === 'asc' ? 0 : 180 }}
-          transition={{ duration: 0.2 }}
-        >
-          <SortAsc className="w-3 h-3" />
-        </motion.div>
-      )}
-    </motion.button>
-  );
+  const handlePurchase = (id: string) => {
+    // Handle purchase logic here
+    console.log('Purchasing item:', id);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-primary">
@@ -533,215 +601,26 @@ export default function ShopPage() {
           </div>
         </motion.div>
 
-        {/* Search Controls */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-6"
-        >
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={filter.search}
-                onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-                className="w-full bg-gray-900/70 backdrop-blur-sm border border-gray-700/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20 transition-all placeholder-gray-500 text-white"
-                placeholder={`Search in ${activeSection} collection...`}
-              />
-              {filter.search && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  onClick={() => setFilter(prev => ({ ...prev, search: '' }))}
-                  className="absolute right-3 top-3 w-4 h-4 text-gray-400 hover:text-accent-cyan transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </motion.button>
-              )}
-            </div>
-
-            {/* Filter Controls */}
-            <div className="flex items-center gap-3">
-              <motion.button
-                onClick={() => setShowFilters(!showFilters)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`px-4 py-3 rounded-xl transition-all flex items-center gap-2 ${
-                  showFilters 
-                    ? 'bg-gradient-to-r from-gray-900 to-black text-white shadow-lg border border-gray-700' 
-                    : 'bg-gray-800/70 border border-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-900/50'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm font-medium">Filters</span>
-              </motion.button>
-
-              <div className="text-sm text-gray-500 bg-gray-900/50 px-3 py-3 rounded-xl border border-gray-700/50">
-                <span className="text-gray-300 font-medium">{filteredAndSortedItems.length}</span> found
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Advanced Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -20 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="mb-8 overflow-hidden"
-            >
-              <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white flex items-center">
-                    <Filter className="w-5 h-5 mr-2 text-gray-400" />
-                    Advanced Filters
-                  </h3>
-                </div>
-
-                {/* Filter Options */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                    <select
-                      value={filter.type}
-                      onChange={(e) => setFilter(prev => ({ ...prev, type: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Types</option>
-                      {types.map(type => (
-                        <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Rarity</label>
-                    <select
-                      value={filter.rarity}
-                      onChange={(e) => setFilter(prev => ({ ...prev, rarity: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Rarities</option>
-                      {rarities.map(rarity => (
-                        <option key={rarity} value={rarity}>{rarity.charAt(0).toUpperCase() + rarity.slice(1)}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Currency</label>
-                    <select
-                      value={filter.currency}
-                      onChange={(e) => setFilter(prev => ({ ...prev, currency: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Currencies</option>
-                      {currencies.map(currency => (
-                        <option key={currency} value={currency}>{currency.charAt(0).toUpperCase() + currency.slice(1)}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Min Price</label>
-                    <input
-                      type="number"
-                      value={filter.priceMin}
-                      onChange={(e) => setFilter(prev => ({ ...prev, priceMin: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                      placeholder="0"
-                      min="0"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Max Price</label>
-                    <input
-                      type="number"
-                      value={filter.priceMax}
-                      onChange={(e) => setFilter(prev => ({ ...prev, priceMax: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                      placeholder="999999"
-                      min="0"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Options</label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={filter.inStock}
-                        onChange={(e) => setFilter(prev => ({ ...prev, inStock: e.target.checked }))}
-                        className="rounded border-gray-700 text-gray-500 focus:ring-gray-500/20"
-                      />
-                      <span className="text-xs text-gray-300">In Stock Only</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={filter.isNew}
-                        onChange={(e) => setFilter(prev => ({ ...prev, isNew: e.target.checked }))}
-                        className="rounded border-gray-700 text-gray-500 focus:ring-gray-500/20"
-                      />
-                      <span className="text-xs text-gray-300">New Items</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={filter.hasDiscount}
-                        onChange={(e) => setFilter(prev => ({ ...prev, hasDiscount: e.target.checked }))}
-                        className="rounded border-gray-700 text-gray-500 focus:ring-gray-500/20"
-                      />
-                      <span className="text-xs text-gray-300">On Sale</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={filter.featured}
-                        onChange={(e) => setFilter(prev => ({ ...prev, featured: e.target.checked }))}
-                        className="rounded border-gray-700 text-gray-500 focus:ring-gray-500/20"
-                      />
-                      <span className="text-xs text-gray-300">Featured</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Sort Options */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                  <span className="text-sm text-gray-400 flex items-center mr-2">
-                    <SortAsc className="w-4 h-4 mr-1" />
-                    Sort by:
-                  </span>
-                  <SortButton sortKey="name">Name</SortButton>
-                  <SortButton sortKey="price">Price</SortButton>
-                  <SortButton sortKey="rarity">Rarity</SortButton>
-                  <SortButton sortKey="type">Type</SortButton>
-                </div>
-
-                {/* Filter Actions */}
-                <div className="flex items-center justify-between">
-                  <Button
-                    variant="outline"
-                    onClick={clearFilters}
-                    className="text-accent-pink border-accent-pink/30 hover:bg-accent-pink/10"
-                  >
-                    Clear All Filters
-                  </Button>
-                  <div className="text-sm text-muted-foreground">
-                    <span className="text-accent-cyan font-medium">{filteredAndSortedItems.length}</span> of {shopItems.filter(item => item.section === activeSection).length} items
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Search and Filter Controls */}
+        <UnifiedFilter
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          filterFields={filterFields}
+          sortOptions={sortOptions}
+          filterValues={filterValues}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          resultCount={filteredAndSortedItems.length}
+          totalCount={shopItems.filter(item => item.section === activeSection).length}
+          itemLabel="items"
+          accentColor="accent-pink"
+          secondaryColor="accent-purple"
+          blackTheme={true}
+          headerIcon={<ShoppingCart className="w-4 h-4" />}
+        />
 
         {/* Shop Items */}
         <motion.div

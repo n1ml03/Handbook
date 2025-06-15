@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * SQL Server Migration Test Script
- * 
+ * MySQL Migration Test Script
+ *
  * This script tests the database connection and basic operations
  * to verify the migration was successful.
  */

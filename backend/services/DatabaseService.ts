@@ -1,5 +1,5 @@
-import * as sql from 'mssql';
-import pool, { getRequest, initializePool } from '../config/database';
+import mysql from 'mysql2/promise';
+import pool, { getConnection, executeQuery, initializePool } from '../config/database';
 import logger from '../config/logger';
 import { AppError } from '../middleware/errorHandler';
 
@@ -39,7 +39,7 @@ interface PaginatedResult<T> {
 }
 
 export class DatabaseService {
-  private pool: sql.ConnectionPool;
+  private pool: mysql.Pool;
 
   constructor() {
     this.pool = pool;
@@ -51,21 +51,23 @@ export class DatabaseService {
   }
 
   // Helper method for transactions
-  async withTransaction<T>(callback: (transaction: sql.Transaction) => Promise<T>): Promise<T> {
-    const transaction = new sql.Transaction(this.pool);
+  async withTransaction<T>(callback: (connection: mysql.PoolConnection) => Promise<T>): Promise<T> {
+    const connection = await this.pool.getConnection();
     try {
-      await transaction.begin();
-      const result = await callback(transaction);
-      await transaction.commit();
+      await connection.beginTransaction();
+      const result = await callback(connection);
+      await connection.commit();
       return result;
     } catch (error) {
-      await transaction.rollback();
+      await connection.rollback();
       logger.error('Transaction failed:', error);
       throw error;
+    } finally {
+      connection.release();
     }
   }
 
-  // Helper method for pagination (SQL Server syntax)
+  // Helper method for pagination (MySQL syntax)
   private buildPaginationQuery(baseQuery: string, options: PaginationOptions): string {
     const { page = 1, limit = 10, sortBy, sortOrder = 'asc' } = options;
     const offset = (page - 1) * limit;
@@ -74,12 +76,9 @@ export class DatabaseService {
 
     if (sortBy) {
       query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
-    } else {
-      // SQL Server requires ORDER BY for OFFSET/FETCH
-      query += ` ORDER BY (SELECT NULL)`;
     }
 
-    query += ` OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY`;
+    query += ` LIMIT ${limit} OFFSET ${offset}`;
 
     return query;
   }
@@ -95,42 +94,13 @@ export class DatabaseService {
 
     try {
       // Get total count
-      const countRequest = getRequest();
-      let total: number;
-      if (params.length > 0) {
-        params.forEach((param, index) => {
-          countRequest.input(`param${index + 1}`, param);
-        });
-        const modifiedCountQuery = countQuery.replace(/\$\d+/g, (match) => {
-          const paramIndex = parseInt(match.substring(1));
-          return `@param${paramIndex}`;
-        });
-        const countResult = await countRequest.query(modifiedCountQuery);
-        total = countResult.recordset[0][''] || countResult.recordset[0].count || 0;
-      } else {
-        const countResult = await countRequest.query(countQuery);
-        total = countResult.recordset[0][''] || countResult.recordset[0].count || 0;
-      }
+      const [countRows] = await executeQuery(countQuery, params) as [any[], any];
+      const total = countRows[0]['COUNT(*)'] || countRows[0].count || 0;
 
       // Get paginated data
       const paginatedQuery = this.buildPaginationQuery(baseQuery, options);
-      const dataRequest = getRequest();
-      let data: T[];
-
-      if (params.length > 0) {
-        params.forEach((param, index) => {
-          dataRequest.input(`param${index + 1}`, param);
-        });
-        const modifiedDataQuery = paginatedQuery.replace(/\$\d+/g, (match) => {
-          const paramIndex = parseInt(match.substring(1));
-          return `@param${paramIndex}`;
-        });
-        const dataResult = await dataRequest.query(modifiedDataQuery);
-        data = dataResult.recordset.map(mapFunction);
-      } else {
-        const dataResult = await dataRequest.query(paginatedQuery);
-        data = dataResult.recordset.map(mapFunction);
-      }
+      const [dataRows] = await executeQuery(paginatedQuery, params) as [any[], any];
+      const data = dataRows.map(mapFunction);
 
       const totalPages = Math.ceil(total / limit);
 
@@ -154,21 +124,21 @@ export class DatabaseService {
   // Characters CRUD
   async createCharacter(character: NewCharacter): Promise<Character> {
     try {
-      const request = getRequest();
-      request.input('id', sql.NVarChar(255), character.id);
-      request.input('name', sql.NVarChar(255), character.name);
-      request.input('name_jp', sql.NVarChar(255), character.nameJp);
-      request.input('name_en', sql.NVarChar(255), character.nameEn);
-      request.input('name_zh', sql.NVarChar(255), character.nameZh);
-
-      const result = await request.query(
+      const [result] = await executeQuery(
         `INSERT INTO characters (id, name, name_jp, name_en, name_zh, created_at, updated_at)
-         OUTPUT INSERTED.*
-         VALUES (@id, @name, @name_jp, @name_en, @name_zh, GETDATE(), GETDATE())`
-      );
-      return this.mapCharacterRow(result.recordset[0]);
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [character.id, character.name, character.nameJp, character.nameEn, character.nameZh]
+      ) as [mysql.ResultSetHeader, any];
+
+      // Get the inserted record
+      const [rows] = await executeQuery(
+        'SELECT * FROM characters WHERE id = ?',
+        [character.id]
+      ) as [any[], any];
+
+      return this.mapCharacterRow(rows[0]);
     } catch (error: any) {
-      if (error.number === 2627) { // Unique constraint violation in SQL Server
+      if (error.code === 'ER_DUP_ENTRY') { // Unique constraint violation in MySQL
         throw new AppError('Character with this ID already exists', 409);
       }
       throw new AppError('Failed to create character', 500);
@@ -185,59 +155,56 @@ export class DatabaseService {
   }
 
   async getCharacterById(id: string): Promise<Character> {
-    const request = getRequest();
-    request.input('id', sql.NVarChar(255), id);
-    const result = await request.query('SELECT * FROM characters WHERE id = @id');
-    if (result.recordset.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM characters WHERE id = ?', [id]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Character not found', 404);
     }
-    return this.mapCharacterRow(result.recordset[0]);
+    return this.mapCharacterRow(rows[0]);
   }
 
   async updateCharacter(id: string, updates: Partial<NewCharacter>): Promise<Character> {
     const setClause: string[] = [];
-    const request = getRequest();
-    request.input('id', sql.NVarChar(255), id);
+    const params: any[] = [];
 
     if (updates.name !== undefined) {
-      setClause.push(`name = @name`);
-      request.input('name', sql.NVarChar(255), updates.name);
+      setClause.push(`name = ?`);
+      params.push(updates.name);
     }
     if (updates.nameJp !== undefined) {
-      setClause.push(`name_jp = @name_jp`);
-      request.input('name_jp', sql.NVarChar(255), updates.nameJp);
+      setClause.push(`name_jp = ?`);
+      params.push(updates.nameJp);
     }
     if (updates.nameEn !== undefined) {
-      setClause.push(`name_en = @name_en`);
-      request.input('name_en', sql.NVarChar(255), updates.nameEn);
+      setClause.push(`name_en = ?`);
+      params.push(updates.nameEn);
     }
     if (updates.nameZh !== undefined) {
-      setClause.push(`name_zh = @name_zh`);
-      request.input('name_zh', sql.NVarChar(255), updates.nameZh);
+      setClause.push(`name_zh = ?`);
+      params.push(updates.nameZh);
     }
 
     if (setClause.length === 0) {
       return this.getCharacterById(id);
     }
 
-    setClause.push(`updated_at = GETDATE()`);
+    setClause.push(`updated_at = NOW()`);
+    params.push(id);
 
-    const result = await request.query(
-      `UPDATE characters SET ${setClause.join(', ')} OUTPUT INSERTED.* WHERE id = @id`
-    );
+    const [result] = await executeQuery(
+      `UPDATE characters SET ${setClause.join(', ')} WHERE id = ?`,
+      params
+    ) as [mysql.ResultSetHeader, any];
 
-    if (result.recordset.length === 0) {
+    if (result.affectedRows === 0) {
       throw new AppError('Character not found', 404);
     }
 
-    return this.mapCharacterRow(result.recordset[0]);
+    return this.getCharacterById(id);
   }
 
   async deleteCharacter(id: string): Promise<void> {
-    const request = getRequest();
-    request.input('id', sql.NVarChar(255), id);
-    const result = await request.query('DELETE FROM characters WHERE id = @id');
-    if (result.rowsAffected[0] === 0) {
+    const [result] = await executeQuery('DELETE FROM characters WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
+    if (result.affectedRows === 0) {
       throw new AppError('Character not found', 404);
     }
   }
@@ -245,21 +212,21 @@ export class DatabaseService {
   // Skills CRUD
   async createSkill(skill: NewSkill): Promise<Skill> {
     try {
-      const request = getRequest();
-      request.input('id', sql.NVarChar(255), skill.id);
-      request.input('name', sql.NVarChar(255), skill.name);
-      request.input('type', sql.NVarChar(100), skill.type);
-      request.input('description', sql.NVarChar(sql.MAX), skill.description);
-      request.input('icon', sql.NVarChar(255), skill.icon);
-
-      const result = await request.query(
+      const [result] = await executeQuery(
         `INSERT INTO skills (id, name, type, description, icon, created_at, updated_at)
-         OUTPUT INSERTED.*
-         VALUES (@id, @name, @type, @description, @icon, GETDATE(), GETDATE())`
-      );
-      return this.mapSkillRow(result.recordset[0]);
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [skill.id, skill.name, skill.type, skill.description, skill.icon]
+      ) as [mysql.ResultSetHeader, any];
+
+      // Get the inserted record
+      const [rows] = await executeQuery(
+        'SELECT * FROM skills WHERE id = ?',
+        [skill.id]
+      ) as [any[], any];
+
+      return this.mapSkillRow(rows[0]);
     } catch (error: any) {
-      if (error.number === 2627) {
+      if (error.code === 'ER_DUP_ENTRY') {
         throw new AppError('Skill with this ID already exists', 409);
       }
       throw new AppError('Failed to create skill', 500);
@@ -276,61 +243,56 @@ export class DatabaseService {
   }
 
   async getSkillById(id: string): Promise<Skill> {
-    const request = getRequest();
-    request.input('id', sql.NVarChar(255), id);
-    const result = await request.query('SELECT * FROM skills WHERE id = @id');
-    if (result.recordset.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM skills WHERE id = ?', [id]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Skill not found', 404);
     }
-    return this.mapSkillRow(result.recordset[0]);
+    return this.mapSkillRow(rows[0]);
   }
 
   async updateSkill(id: string, updates: Partial<NewSkill>): Promise<Skill> {
     const setClause: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const params: any[] = [];
 
     if (updates.name !== undefined) {
-      setClause.push(`name = $${paramIndex++}`);
-      values.push(updates.name);
+      setClause.push(`name = ?`);
+      params.push(updates.name);
     }
     if (updates.type !== undefined) {
-      setClause.push(`type = $${paramIndex++}`);
-      values.push(updates.type);
+      setClause.push(`type = ?`);
+      params.push(updates.type);
     }
     if (updates.description !== undefined) {
-      setClause.push(`description = $${paramIndex++}`);
-      values.push(updates.description);
+      setClause.push(`description = ?`);
+      params.push(updates.description);
     }
     if (updates.icon !== undefined) {
-      setClause.push(`icon = $${paramIndex++}`);
-      values.push(updates.icon);
+      setClause.push(`icon = ?`);
+      params.push(updates.icon);
     }
 
     if (setClause.length === 0) {
       return this.getSkillById(id);
     }
 
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
+    setClause.push(`updated_at = NOW()`);
+    params.push(id);
 
-    const result = await this.pool.query(
-      `UPDATE skills SET ${setClause.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-      values
-    );
+    const [result] = await executeQuery(
+      `UPDATE skills SET ${setClause.join(', ')} WHERE id = ?`,
+      params
+    ) as [mysql.ResultSetHeader, any];
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       throw new AppError('Skill not found', 404);
     }
 
-    return this.mapSkillRow(result.rows[0]);
+    return this.getSkillById(id);
   }
 
   async deleteSkill(id: string): Promise<void> {
-    const request = getRequest();
-    request.input('id', sql.NVarChar(255), id);
-    const result = await request.query('DELETE FROM skills WHERE id = @id');
-    if (result.rowsAffected[0] === 0) {
+    const [result] = await executeQuery('DELETE FROM skills WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
+    if (result.affectedRows === 0) {
       throw new AppError('Skill not found', 404);
     }
   }
@@ -338,18 +300,24 @@ export class DatabaseService {
   // Swimsuits CRUD
   async createSwimsuit(swimsuit: NewSwimsuit): Promise<Swimsuit> {
     try {
-      const result = await this.pool.query(
+      const [result] = await executeQuery(
         `INSERT INTO swimsuits (id, name, character_id, rarity, pow, tec, stm, apl, release_date, reappear_date, image, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         RETURNING *`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [swimsuit.id, swimsuit.name, swimsuit.characterId, swimsuit.rarity, swimsuit.pow, swimsuit.tec, swimsuit.stm, swimsuit.apl, swimsuit.releaseDate, swimsuit.reappearDate, swimsuit.image]
-      );
-      return this.mapSwimsuitRow(result.rows[0]);
+      ) as [mysql.ResultSetHeader, any];
+
+      // Get the inserted record
+      const [rows] = await executeQuery(
+        'SELECT * FROM swimsuits WHERE id = ?',
+        [swimsuit.id]
+      ) as [any[], any];
+
+      return this.mapSwimsuitRow(rows[0]);
     } catch (error: any) {
-      if (error.code === '23505') {
+      if (error.code === 'ER_DUP_ENTRY') {
         throw new AppError('Swimsuit with this ID already exists', 409);
       }
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Character not found', 404);
       }
       throw new AppError('Failed to create swimsuit', 500);
@@ -366,17 +334,17 @@ export class DatabaseService {
   }
 
   async getSwimsuitById(id: string): Promise<Swimsuit> {
-    const result = await this.pool.query('SELECT * FROM swimsuits WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM swimsuits WHERE id = ?', [id]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Swimsuit not found', 404);
     }
-    return this.mapSwimsuitRow(result.rows[0]);
+    return this.mapSwimsuitRow(rows[0]);
   }
 
   async getSwimsuitsByCharacter(characterId: string, options: PaginationOptions = {}): Promise<PaginatedResult<Swimsuit>> {
     return this.getPaginatedResults(
-      'SELECT * FROM swimsuits WHERE character_id = $1',
-      'SELECT COUNT(*) FROM swimsuits WHERE character_id = $1',
+      'SELECT * FROM swimsuits WHERE character_id = ?',
+      'SELECT COUNT(*) FROM swimsuits WHERE character_id = ?',
       { sortBy: 'release_date', sortOrder: 'desc', ...options },
       this.mapSwimsuitRow,
       [characterId]
@@ -385,17 +353,16 @@ export class DatabaseService {
 
   async updateSwimsuit(id: string, updates: Partial<NewSwimsuit>): Promise<Swimsuit> {
     const setClause: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const params: any[] = [];
 
     Object.keys(updates).forEach((key) => {
       const value = (updates as any)[key];
       if (value !== undefined) {
-        const dbKey = key === 'characterId' ? 'character_id' : 
+        const dbKey = key === 'characterId' ? 'character_id' :
                      key === 'releaseDate' ? 'release_date' :
                      key === 'reappearDate' ? 'reappear_date' : key;
-        setClause.push(`${dbKey} = $${paramIndex++}`);
-        values.push(value);
+        setClause.push(`${dbKey} = ?`);
+        params.push(value);
       }
     });
 
@@ -403,22 +370,22 @@ export class DatabaseService {
       return this.getSwimsuitById(id);
     }
 
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
+    setClause.push(`updated_at = NOW()`);
+    params.push(id);
 
     try {
-      const result = await this.pool.query(
-        `UPDATE swimsuits SET ${setClause.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-        values
-      );
+      const [result] = await executeQuery(
+        `UPDATE swimsuits SET ${setClause.join(', ')} WHERE id = ?`,
+        params
+      ) as [mysql.ResultSetHeader, any];
 
-      if (result.rows.length === 0) {
+      if (result.affectedRows === 0) {
         throw new AppError('Swimsuit not found', 404);
       }
 
-      return this.mapSwimsuitRow(result.rows[0]);
+      return this.getSwimsuitById(id);
     } catch (error: any) {
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Character not found', 404);
       }
       throw new AppError('Failed to update swimsuit', 500);
@@ -426,8 +393,8 @@ export class DatabaseService {
   }
 
   async deleteSwimsuit(id: string): Promise<void> {
-    const result = await this.pool.query('DELETE FROM swimsuits WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
+    const [result] = await executeQuery('DELETE FROM swimsuits WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
+    if (result.affectedRows === 0) {
       throw new AppError('Swimsuit not found', 404);
     }
   }
@@ -435,18 +402,24 @@ export class DatabaseService {
   // Girls CRUD
   async createGirl(girl: NewGirl): Promise<Girl> {
     try {
-      const result = await this.pool.query(
+      const [result] = await executeQuery(
         `INSERT INTO girls (id, name, type, level, pow, tec, stm, apl, max_pow, max_tec, max_stm, max_apl, birthday, swimsuit_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         RETURNING *`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [girl.id, girl.name, girl.type, girl.level, girl.pow, girl.tec, girl.stm, girl.apl, girl.maxPow, girl.maxTec, girl.maxStm, girl.maxApl, girl.birthday, girl.swimsuitId]
-      );
-      return this.mapGirlRow(result.rows[0]);
+      ) as [mysql.ResultSetHeader, any];
+
+      // Get the inserted record
+      const [rows] = await executeQuery(
+        'SELECT * FROM girls WHERE id = ?',
+        [girl.id]
+      ) as [any[], any];
+
+      return this.mapGirlRow(rows[0]);
     } catch (error: any) {
-      if (error.code === '23505') {
+      if (error.code === 'ER_DUP_ENTRY') {
         throw new AppError('Girl with this ID already exists', 409);
       }
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Referenced swimsuit not found', 404);
       }
       throw new AppError('Failed to create girl', 500);
@@ -463,17 +436,16 @@ export class DatabaseService {
   }
 
   async getGirlById(id: string): Promise<Girl> {
-    const result = await this.pool.query('SELECT * FROM girls WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM girls WHERE id = ?', [id]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Girl not found', 404);
     }
-    return this.mapGirlRow(result.rows[0]);
+    return this.mapGirlRow(rows[0]);
   }
 
   async updateGirl(id: string, updates: Partial<NewGirl>): Promise<Girl> {
     const setClause: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const params: any[] = [];
 
     Object.keys(updates).forEach((key) => {
       const value = (updates as any)[key];
@@ -483,8 +455,8 @@ export class DatabaseService {
                      key === 'maxStm' ? 'max_stm' :
                      key === 'maxApl' ? 'max_apl' :
                      key === 'swimsuitId' ? 'swimsuit_id' : key;
-        setClause.push(`${dbKey} = $${paramIndex++}`);
-        values.push(value);
+        setClause.push(`${dbKey} = ?`);
+        params.push(value);
       }
     });
 
@@ -492,22 +464,22 @@ export class DatabaseService {
       return this.getGirlById(id);
     }
 
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
+    setClause.push(`updated_at = NOW()`);
+    params.push(id);
 
     try {
-      const result = await this.pool.query(
-        `UPDATE girls SET ${setClause.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-        values
-      );
+      const [result] = await executeQuery(
+        `UPDATE girls SET ${setClause.join(', ')} WHERE id = ?`,
+        params
+      ) as [mysql.ResultSetHeader, any];
 
-      if (result.rows.length === 0) {
+      if (result.affectedRows === 0) {
         throw new AppError('Girl not found', 404);
       }
 
-      return this.mapGirlRow(result.rows[0]);
+      return this.getGirlById(id);
     } catch (error: any) {
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Referenced swimsuit not found', 404);
       }
       throw new AppError('Failed to update girl', 500);
@@ -515,8 +487,8 @@ export class DatabaseService {
   }
 
   async deleteGirl(id: string): Promise<void> {
-    const result = await this.pool.query('DELETE FROM girls WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
+    const [result] = await executeQuery('DELETE FROM girls WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
+    if (result.affectedRows === 0) {
       throw new AppError('Girl not found', 404);
     }
   }
@@ -524,18 +496,24 @@ export class DatabaseService {
   // Accessories CRUD
   async createAccessory(accessory: NewAccessory): Promise<Accessory> {
     try {
-      const result = await this.pool.query(
+      const [result] = await executeQuery(
         `INSERT INTO accessories (id, name, type, skill_id, pow, tec, stm, apl, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         RETURNING *`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [accessory.id, accessory.name, accessory.type, accessory.skillId, accessory.pow, accessory.tec, accessory.stm, accessory.apl]
-      );
-      return this.mapAccessoryRow(result.rows[0]);
+      ) as [mysql.ResultSetHeader, any];
+
+      // Get the inserted record
+      const [rows] = await executeQuery(
+        'SELECT * FROM accessories WHERE id = ?',
+        [accessory.id]
+      ) as [any[], any];
+
+      return this.mapAccessoryRow(rows[0]);
     } catch (error: any) {
-      if (error.code === '23505') {
+      if (error.code === 'ER_DUP_ENTRY') {
         throw new AppError('Accessory with this ID already exists', 409);
       }
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Referenced skill not found', 404);
       }
       throw new AppError('Failed to create accessory', 500);
@@ -552,17 +530,17 @@ export class DatabaseService {
   }
 
   async getAccessoryById(id: string): Promise<Accessory> {
-    const result = await this.pool.query('SELECT * FROM accessories WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM accessories WHERE id = ?', [id]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Accessory not found', 404);
     }
-    return this.mapAccessoryRow(result.rows[0]);
+    return this.mapAccessoryRow(rows[0]);
   }
 
   async getAccessoriesByType(type: string, options: PaginationOptions = {}): Promise<PaginatedResult<Accessory>> {
     return this.getPaginatedResults(
-      'SELECT * FROM accessories WHERE type = $1',
-      'SELECT COUNT(*) FROM accessories WHERE type = $1',
+      'SELECT * FROM accessories WHERE type = ?',
+      'SELECT COUNT(*) FROM accessories WHERE type = ?',
       { sortBy: 'name', sortOrder: 'asc', ...options },
       this.mapAccessoryRow,
       [type]
@@ -571,15 +549,14 @@ export class DatabaseService {
 
   async updateAccessory(id: string, updates: Partial<NewAccessory>): Promise<Accessory> {
     const setClause: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const params: any[] = [];
 
     Object.keys(updates).forEach((key) => {
       const value = (updates as any)[key];
       if (value !== undefined) {
         const dbKey = key === 'skillId' ? 'skill_id' : key;
-        setClause.push(`${dbKey} = $${paramIndex++}`);
-        values.push(value);
+        setClause.push(`${dbKey} = ?`);
+        params.push(value);
       }
     });
 
@@ -587,22 +564,22 @@ export class DatabaseService {
       return this.getAccessoryById(id);
     }
 
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
+    setClause.push(`updated_at = NOW()`);
+    params.push(id);
 
     try {
-      const result = await this.pool.query(
-        `UPDATE accessories SET ${setClause.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-        values
-      );
+      const [result] = await executeQuery(
+        `UPDATE accessories SET ${setClause.join(', ')} WHERE id = ?`,
+        params
+      ) as [mysql.ResultSetHeader, any];
 
-      if (result.rows.length === 0) {
+      if (result.affectedRows === 0) {
         throw new AppError('Accessory not found', 404);
       }
 
-      return this.mapAccessoryRow(result.rows[0]);
+      return this.getAccessoryById(id);
     } catch (error: any) {
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Referenced skill not found', 404);
       }
       throw new AppError('Failed to update accessory', 500);
@@ -610,8 +587,8 @@ export class DatabaseService {
   }
 
   async deleteAccessory(id: string): Promise<void> {
-    const result = await this.pool.query('DELETE FROM accessories WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
+    const [result] = await executeQuery('DELETE FROM accessories WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
+    if (result.affectedRows === 0) {
       throw new AppError('Accessory not found', 404);
     }
   }
@@ -619,18 +596,24 @@ export class DatabaseService {
   // Venus Board CRUD
   async createVenusBoard(venusBoard: NewVenusBoard): Promise<VenusBoard> {
     try {
-      const result = await this.pool.query(
+      const [result] = await executeQuery(
         `INSERT INTO venus_boards (girl_id, pow, tec, stm, apl, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         RETURNING *`,
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
         [venusBoard.girlId, venusBoard.pow, venusBoard.tec, venusBoard.stm, venusBoard.apl]
-      );
-      return this.mapVenusBoardRow(result.rows[0]);
+      ) as [mysql.ResultSetHeader, any];
+
+      // Get the inserted record
+      const [rows] = await executeQuery(
+        'SELECT * FROM venus_boards WHERE id = ?',
+        [result.insertId]
+      ) as [any[], any];
+
+      return this.mapVenusBoardRow(rows[0]);
     } catch (error: any) {
-      if (error.code === '23505') {
+      if (error.code === 'ER_DUP_ENTRY') {
         throw new AppError('Venus Board for this girl already exists', 409);
       }
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Referenced girl not found', 404);
       }
       throw new AppError('Failed to create Venus Board', 500);
@@ -647,32 +630,31 @@ export class DatabaseService {
   }
 
   async getVenusBoardById(id: number): Promise<VenusBoard> {
-    const result = await this.pool.query('SELECT * FROM venus_boards WHERE id = $1', [id]);
-    if (result.rows.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM venus_boards WHERE id = ?', [id]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Venus Board not found', 404);
     }
-    return this.mapVenusBoardRow(result.rows[0]);
+    return this.mapVenusBoardRow(rows[0]);
   }
 
   async getVenusBoardByGirlId(girlId: string): Promise<VenusBoard> {
-    const result = await this.pool.query('SELECT * FROM venus_boards WHERE girl_id = $1', [girlId]);
-    if (result.rows.length === 0) {
+    const [rows] = await executeQuery('SELECT * FROM venus_boards WHERE girl_id = ?', [girlId]) as [any[], any];
+    if (rows.length === 0) {
       throw new AppError('Venus Board not found for this girl', 404);
     }
-    return this.mapVenusBoardRow(result.rows[0]);
+    return this.mapVenusBoardRow(rows[0]);
   }
 
   async updateVenusBoard(id: number, updates: Partial<NewVenusBoard>): Promise<VenusBoard> {
     const setClause: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+    const params: any[] = [];
 
     Object.keys(updates).forEach((key) => {
       const value = (updates as any)[key];
       if (value !== undefined) {
         const dbKey = key === 'girlId' ? 'girl_id' : key;
-        setClause.push(`${dbKey} = $${paramIndex++}`);
-        values.push(value);
+        setClause.push(`${dbKey} = ?`);
+        params.push(value);
       }
     });
 
@@ -680,22 +662,22 @@ export class DatabaseService {
       return this.getVenusBoardById(id);
     }
 
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
+    setClause.push(`updated_at = NOW()`);
+    params.push(id);
 
     try {
-      const result = await this.pool.query(
-        `UPDATE venus_boards SET ${setClause.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-        values
-      );
+      const [result] = await executeQuery(
+        `UPDATE venus_boards SET ${setClause.join(', ')} WHERE id = ?`,
+        params
+      ) as [mysql.ResultSetHeader, any];
 
-      if (result.rows.length === 0) {
+      if (result.affectedRows === 0) {
         throw new AppError('Venus Board not found', 404);
       }
 
-      return this.mapVenusBoardRow(result.rows[0]);
+      return this.getVenusBoardById(id);
     } catch (error: any) {
-      if (error.code === '23503') {
+      if (error.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new AppError('Referenced girl not found', 404);
       }
       throw new AppError('Failed to update Venus Board', 500);
@@ -703,8 +685,8 @@ export class DatabaseService {
   }
 
   async deleteVenusBoard(id: number): Promise<void> {
-    const result = await this.pool.query('DELETE FROM venus_boards WHERE id = $1', [id]);
-    if (result.rowCount === 0) {
+    const [result] = await executeQuery('DELETE FROM venus_boards WHERE id = ?', [id]) as [mysql.ResultSetHeader, any];
+    if (result.affectedRows === 0) {
       throw new AppError('Venus Board not found', 404);
     }
   }
@@ -712,8 +694,7 @@ export class DatabaseService {
   // Health check
   async healthCheck(): Promise<{ isHealthy: boolean; errors: string[] }> {
     try {
-      const request = getRequest();
-      await request.query('SELECT 1 as test');
+      await executeQuery('SELECT 1 as test');
       return { isHealthy: true, errors: [] };
     } catch (error) {
       logger.error('Database health check failed:', error);
@@ -811,6 +792,172 @@ export class DatabaseService {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  // Girls related methods
+  async getGirls({ page = 1, limit = 10, sort = 'name', order = 'asc', search, rarity, type }) {
+    const offset = (page - 1) * limit;
+    let query = 'SELECT * FROM girls';
+    const params = [];
+
+    if (search || rarity || type) {
+      query += ' WHERE';
+      if (search) {
+        query += ' name LIKE ?';
+        params.push(`%${search}%`);
+      }
+      if (rarity) {
+        query += search ? ' AND' : '';
+        query += ' rarity = ?';
+        params.push(rarity);
+      }
+      if (type) {
+        query += (search || rarity) ? ' AND' : '';
+        query += ' type = ?';
+        params.push(type);
+      }
+    }
+
+    query += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const [rows] = await this.pool.query(query, params);
+    const [total] = await this.pool.query('SELECT COUNT(*) as count FROM girls');
+
+    return {
+      success: true,
+      data: rows,
+      pagination: {
+        total: total[0].count,
+        page,
+        limit,
+        pages: Math.ceil(total[0].count / limit)
+      }
+    };
+  }
+
+  async getGirlSkills(girlId) {
+    const [rows] = await this.pool.query(
+      'SELECT s.* FROM skills s JOIN girl_skills gs ON s.id = gs.skill_id WHERE gs.girl_id = ?',
+      [girlId]
+    );
+    return rows;
+  }
+
+  async getGirlSwimsuits(girlId) {
+    const [rows] = await this.pool.query(
+      'SELECT s.* FROM swimsuits s JOIN girl_swimsuits gs ON s.id = gs.swimsuit_id WHERE gs.girl_id = ?',
+      [girlId]
+    );
+    return rows;
+  }
+
+  // Accessories related methods
+  async getAccessories({ page = 1, limit = 10, sort = 'name', order = 'asc', search, rarity, type }) {
+    const offset = (page - 1) * limit;
+    let query = 'SELECT * FROM accessories';
+    const params = [];
+
+    if (search || rarity || type) {
+      query += ' WHERE';
+      if (search) {
+        query += ' name LIKE ?';
+        params.push(`%${search}%`);
+      }
+      if (rarity) {
+        query += search ? ' AND' : '';
+        query += ' rarity = ?';
+        params.push(rarity);
+      }
+      if (type) {
+        query += (search || rarity) ? ' AND' : '';
+        query += ' type = ?';
+        params.push(type);
+      }
+    }
+
+    query += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const [rows] = await this.pool.query(query, params);
+    const [total] = await this.pool.query('SELECT COUNT(*) as count FROM accessories');
+
+    return {
+      success: true,
+      data: rows,
+      pagination: {
+        total: total[0].count,
+        page,
+        limit,
+        pages: Math.ceil(total[0].count / limit)
+      }
+    };
+  }
+
+  async getAccessoryCompatibleGirls(accessoryId) {
+    const [rows] = await this.pool.query(
+      'SELECT g.* FROM girls g JOIN accessory_girls ag ON g.id = ag.girl_id WHERE ag.accessory_id = ?',
+      [accessoryId]
+    );
+    return rows;
+  }
+
+  // Venus Boards related methods
+  async getVenusBoards({ page = 1, limit = 10, sort = 'name', order = 'asc', search, rarity, type }) {
+    const offset = (page - 1) * limit;
+    let query = 'SELECT * FROM venus_boards';
+    const params = [];
+
+    if (search || rarity || type) {
+      query += ' WHERE';
+      if (search) {
+        query += ' name LIKE ?';
+        params.push(`%${search}%`);
+      }
+      if (rarity) {
+        query += search ? ' AND' : '';
+        query += ' rarity = ?';
+        params.push(rarity);
+      }
+      if (type) {
+        query += (search || rarity) ? ' AND' : '';
+        query += ' type = ?';
+        params.push(type);
+      }
+    }
+
+    query += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const [rows] = await this.pool.query(query, params);
+    const [total] = await this.pool.query('SELECT COUNT(*) as count FROM venus_boards');
+
+    return {
+      success: true,
+      data: rows,
+      pagination: {
+        total: total[0].count,
+        page,
+        limit,
+        pages: Math.ceil(total[0].count / limit)
+      }
+    };
+  }
+
+  async getVenusBoardCompatibleGirls(venusBoardId) {
+    const [rows] = await this.pool.query(
+      'SELECT g.* FROM girls g JOIN venus_board_girls vbg ON g.id = vbg.girl_id WHERE vbg.venus_board_id = ?',
+      [venusBoardId]
+    );
+    return rows;
+  }
+
+  async getVenusBoardSkills(venusBoardId) {
+    const [rows] = await this.pool.query(
+      'SELECT s.* FROM skills s JOIN venus_board_skills vbs ON s.id = vbs.skill_id WHERE vbs.venus_board_id = ?',
+      [venusBoardId]
+    );
+    return rows;
   }
 }
 

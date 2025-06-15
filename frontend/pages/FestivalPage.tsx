@@ -16,9 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { eventsData, type Event } from '@/data';
-
-type SortDirection = 'asc' | 'desc';
-type SortOption = 'name' | 'startDate' | 'endDate' | 'isActive';
+import UnifiedFilter, { FilterField, SortOption, SortDirection } from '@/components/UnifiedFilter';
 
 interface FestivalCardProps {
   festival: Event;
@@ -160,9 +158,9 @@ export default function FestivalPage() {
   const allEvents = eventsData;
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('startDate');
+  const [sortBy, setSortBy] = useState<string>('startDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [filter, setFilter] = useState({
+  const [filterValues, setFilterValues] = useState({
     search: '',
     status: '',
     dateRange: '',
@@ -171,19 +169,64 @@ export default function FestivalPage() {
 
   const itemsPerPage = 8;
 
+  // Filter fields configuration
+  const filterFields: FilterField[] = [
+    {
+      key: 'search',
+      label: 'Search',
+      type: 'text',
+      placeholder: 'Search festivals...',
+      icon: <Search className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      placeholder: 'All Status',
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'upcoming', label: 'Upcoming' },
+        { value: 'ended', label: 'Ended' }
+      ],
+      icon: <Clock className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'version',
+      label: 'Version',
+      type: 'select',
+      placeholder: 'All Versions',
+      options: [
+        { value: '1.0', label: '1.0' },
+        { value: '1.5', label: '1.5' },
+        { value: '2.0', label: '2.0' },
+        { value: '2.5', label: '2.5' },
+        { value: '3.0', label: '3.0' }
+      ],
+      icon: <Sparkles className="w-3 h-3 mr-1" />,
+    }
+  ];
+
+  // Sort options
+  const sortOptions: SortOption[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'startDate', label: 'Start Date' },
+    { key: 'endDate', label: 'End Date' },
+    { key: 'isActive', label: 'Status' }
+  ];
+
   const filteredAndSortedFestivals = useMemo(() => {
     let filtered = [...allEvents, ...eventsData].filter(event => {
       if (event.type !== 'festival') return false;
       
-      if (filter.search && !event.name.toLowerCase().includes(filter.search.toLowerCase()) && 
-          !event.description.toLowerCase().includes(filter.search.toLowerCase())) return false;
+      if (filterValues.search && !event.name.toLowerCase().includes(filterValues.search.toLowerCase()) && 
+          !event.description.toLowerCase().includes(filterValues.search.toLowerCase())) return false;
       
-      if (filter.status) {
+      if (filterValues.status) {
         const now = new Date();
         const start = new Date(event.startDate);
         const end = new Date(event.endDate);
         const status = now < start ? 'upcoming' : now > end ? 'ended' : 'active';
-        if (filter.status !== status) return false;
+        if (filterValues.status !== status) return false;
       }
       
       return true;
@@ -217,7 +260,7 @@ export default function FestivalPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [allEvents, filter, sortBy, sortDirection]);
+  }, [allEvents, filterValues, sortBy, sortDirection]);
 
   const totalPages = Math.ceil(filteredAndSortedFestivals.length / itemsPerPage);
   const paginatedFestivals = filteredAndSortedFestivals.slice(
@@ -225,17 +268,18 @@ export default function FestivalPage() {
     currentPage * itemsPerPage
   );
 
-  const handleSortChange = (newSortBy: SortOption) => {
-    if (sortBy === newSortBy) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortDirection('desc');
-    }
+  const handleFilterChange = (key: string, value: any) => {
+    setFilterValues(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (newSortBy: string, newDirection: SortDirection) => {
+    setSortBy(newSortBy);
+    setSortDirection(newDirection);
   };
 
   const clearFilters = () => {
-    setFilter({
+    setFilterValues({
       search: '',
       status: '',
       dateRange: '',
@@ -243,30 +287,6 @@ export default function FestivalPage() {
     });
     setCurrentPage(1);
   };
-
-  const SortButton = ({ sortKey, children }: { sortKey: SortOption; children: React.ReactNode }) => (
-    <motion.button
-      onClick={() => handleSortChange(sortKey)}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={`flex items-center space-x-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-        sortBy === sortKey 
-          ? 'bg-gradient-to-r from-gray-900 to-black text-white shadow-lg border border-gray-700' 
-          : 'bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-900/50 border border-gray-700/50'
-      }`}
-    >
-      <span>{children}</span>
-      {sortBy === sortKey && (
-        <motion.div
-          initial={{ rotate: 0 }}
-          animate={{ rotate: sortDirection === 'asc' ? 0 : 180 }}
-          transition={{ duration: 0.2 }}
-        >
-          <SortAsc className="w-3 h-3" />
-        </motion.div>
-      )}
-    </motion.button>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-primary">
@@ -286,139 +306,25 @@ export default function FestivalPage() {
         </motion.div>
 
         {/* Search and Filter Controls */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={filter.search}
-                onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-                className="w-full bg-gray-900/70 backdrop-blur-sm border border-gray-700/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20 transition-all placeholder-gray-500 text-white"
-                placeholder="Search festivals..."
-              />
-              {filter.search && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  onClick={() => setFilter(prev => ({ ...prev, search: '' }))}
-                  className="absolute right-3 top-3 w-4 h-4 text-gray-400 hover:text-yellow-400 transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </motion.button>
-              )}
-            </div>
-
-            {/* Filter Controls */}
-            <div className="flex items-center gap-3">
-              <motion.button
-                onClick={() => setShowFilters(!showFilters)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`px-4 py-3 rounded-xl transition-all flex items-center gap-2 ${
-                  showFilters 
-                    ? 'bg-gradient-to-r from-gray-900 to-black text-white shadow-lg border border-gray-700' 
-                    : 'bg-gray-800/70 border border-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-900/50'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm font-medium">Filters</span>
-              </motion.button>
-
-              <div className="text-sm text-gray-500 bg-gray-900/50 px-3 py-3 rounded-xl border border-gray-700/50">
-                <span className="text-gray-300 font-medium">{filteredAndSortedFestivals.length}</span> found
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Advanced Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -20 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="mb-8 overflow-hidden"
-            >
-              <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white flex items-center">
-                    <Filter className="w-5 h-5 mr-2 text-gray-400" />
-                    Advanced Filters
-                  </h3>
-                </div>
-
-                {/* Filter Options */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                    <select
-                      value={filter.status}
-                      onChange={(e) => setFilter(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Status</option>
-                      <option value="active">Active</option>
-                      <option value="upcoming">Upcoming</option>
-                      <option value="ended">Ended</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Version</label>
-                    <select
-                      value={filter.version}
-                      onChange={(e) => setFilter(prev => ({ ...prev, version: e.target.value }))}
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-500 transition-all text-white"
-                    >
-                      <option value="">All Versions</option>
-                      <option value="1.0">1.0</option>
-                      <option value="1.5">1.5</option>
-                      <option value="2.0">2.0</option>
-                      <option value="2.5">2.5</option>
-                      <option value="3.0">3.0</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Sort Options */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                  <span className="text-sm text-gray-400 flex items-center mr-2">
-                    <SortAsc className="w-4 h-4 mr-1" />
-                    Sort by:
-                  </span>
-                  <SortButton sortKey="name">Name</SortButton>
-                  <SortButton sortKey="startDate">Start Date</SortButton>
-                  <SortButton sortKey="endDate">End Date</SortButton>
-                  <SortButton sortKey="isActive">Status</SortButton>
-                </div>
-
-                {/* Filter Actions */}
-                <div className="flex items-center justify-between">
-                  <motion.button
-                    onClick={clearFilters}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-yellow-400/20 to-orange-500/20 hover:from-yellow-400/30 hover:to-orange-500/30 text-yellow-400 border border-yellow-400/30 rounded-xl px-6 py-2 text-sm font-medium transition-all"
-                  >
-                    Clear All Filters
-                  </motion.button>
-                  <div className="text-sm text-gray-500">
-                    <span className="text-yellow-400 font-medium">{filteredAndSortedFestivals.length}</span> festivals
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <UnifiedFilter
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          filterFields={filterFields}
+          sortOptions={sortOptions}
+          filterValues={filterValues}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          resultCount={filteredAndSortedFestivals.length}
+          totalCount={allEvents.filter(event => event.type === 'festival').length}
+          itemLabel="festivals"
+          accentColor="yellow"
+          secondaryColor="orange"
+          blackTheme={true}
+          headerIcon={<Music className="w-4 h-4" />}
+        />
 
         {/* Festival Display */}
         <motion.div

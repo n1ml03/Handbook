@@ -58,9 +58,9 @@ The application will be available at `http://localhost:5173`
 - Perfect for personal use
 - Data persists across browser sessions
 
-### PostgreSQL (Optional)
-- Set `USE_POSTGRES=true` in your `.env` file
-- Requires local PostgreSQL installation
+### MySQL (Optional)
+- Set `USE_MYSQL=true` in your `.env` file
+- Requires local MySQL installation
 - Better for production or shared environments
 - See `README-LOCAL-SETUP.md` for detailed setup instructions
 

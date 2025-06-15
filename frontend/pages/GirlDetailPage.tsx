@@ -13,10 +13,8 @@ import {
   Shield,
   Sparkles,
   User,
-  TrendingUp,
   Award,
   Mic,
-  MapPin,
   Coffee,
   Palette,
   Book,
@@ -92,7 +90,6 @@ const GirlDetailPage: React.FC = () => {
 
   const totalStats = girl.stats.pow + girl.stats.tec + girl.stats.stm + girl.stats.apl;
   const maxTotalStats = girl.maxStats.pow + girl.maxStats.tec + girl.maxStats.stm + girl.maxStats.apl;
-  const statsProgress = (totalStats / maxTotalStats) * 100;
 
   const formatBirthday = (birthday: string) => {
     const [month, day] = birthday.split('-');
@@ -555,7 +552,7 @@ const GirlDetailPage: React.FC = () => {
                     View Swimsuits
                   </Button>
                 </Link>
-                <Link to="/accessories" className="block">
+                <Link to="/accessory" className="block">
                   <Button 
                     variant="outline" 
                     className="w-full border-accent-purple/30 text-accent-purple hover:bg-accent-purple/10"

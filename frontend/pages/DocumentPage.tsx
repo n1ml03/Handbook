@@ -1,66 +1,128 @@
-import React, { useState, useEffect } from 'react';
-import { Search, FileText, Tags, Calendar, User, Filter, SortAsc, RefreshCw, ArrowLeft, Edit3, X, Eye } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, FileText, Tags, Calendar, User, Filter, SortAsc, RefreshCw, ArrowLeft, Edit3, X, Eye, CheckSquare, ListChecks } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { documentsData, documentCategoriesData, type Document, type DocumentCategory } from '@/data';
 import TiptapEditor from '@/components/TiptapEditor';
-import { Container, Card, Stack, Inline, StatusBadge } from '@/components/ui/spacing';
+import { Container, Section, Card, Stack, Inline, StatusBadge } from '@/components/ui/spacing';
 import { SaveButton } from '@/components/ui/loading';
+import { useDocuments } from '@/contexts/DocumentsContext';
+import UnifiedFilter, { FilterField, SortOption as UnifiedSortOption, SortDirection } from '@/components/UnifiedFilter';
 
-type SortDirection = 'asc' | 'desc';
 type SortOption = 'date' | 'title' | 'category' | 'author';
 type ViewMode = 'list' | 'document';
+type ActiveSection = 'checklist-creation' | 'checking-guide';
+
+interface DocumentSection {
+  id: ActiveSection;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  status: 'active' | 'inactive' | 'draft';
+}
 
 const DocumentPage: React.FC = () => {
-  const [documents, setDocuments] = useState<Document[]>(documentsData);
+  const { documents, updateDocument } = useDocuments();
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>(documentCategoriesData);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('checklist-creation');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('date');
+  const [sortBy, setSortBy] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
-  const [authorFilter, setAuthorFilter] = useState<string>('');
+  const [filterValues, setFilterValues] = useState<Record<string, any>>({
+    search: '',
+    category: '',
+    status: '',
+    author: ''
+  });
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedContent, setEditedContent] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory;
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'published' && doc.isPublished) ||
-                         (statusFilter === 'draft' && !doc.isPublished);
-    const matchesAuthor = !authorFilter || doc.author.toLowerCase().includes(authorFilter.toLowerCase());
-    
-    return matchesSearch && matchesCategory && matchesStatus && matchesAuthor;
-  }).sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortBy) {
-      case 'date':
-        comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-        break;
-      case 'title':
-        comparison = a.title.localeCompare(b.title);
-        break;
-      case 'category':
-        comparison = a.category.localeCompare(b.category);
-        break;
-      case 'author':
-        comparison = a.author.localeCompare(b.author);
-        break;
+  const documentSections: DocumentSection[] = [
+    {
+      id: 'checklist-creation',
+      title: 'Checklist Creation Guide',
+      icon: CheckSquare,
+      description: 'Comprehensive guides for creating effective checklists',
+      status: 'active'
+    },
+    {
+      id: 'checking-guide',
+      title: 'Checking Guide',
+      icon: ListChecks,
+      description: 'Step-by-step procedures for verification and validation',
+      status: 'active'
     }
-    
-    return sortDirection === 'desc' ? -comparison : comparison;
-  });
+  ];
+
+  // Filter documents based on active section
+  const getSectionDocuments = () => {
+    return documents.filter(doc => {
+      if (activeSection === 'checklist-creation') {
+        return doc.tags.some(tag => 
+          tag.toLowerCase().includes('checklist') || 
+          tag.toLowerCase().includes('creation') ||
+          tag.toLowerCase().includes('guide') ||
+          doc.category === 'checklist-creation'
+        );
+      } else if (activeSection === 'checking-guide') {
+        return doc.tags.some(tag => 
+          tag.toLowerCase().includes('checking') || 
+          tag.toLowerCase().includes('verification') ||
+          tag.toLowerCase().includes('validation') ||
+          doc.category === 'checking-guide'
+        );
+      }
+      return false;
+    });
+  };
+
+  const filteredDocuments = useMemo(() => {
+    const sectionDocuments = getSectionDocuments();
+    let filtered = sectionDocuments.filter(doc => {
+      const searchTerm = (filterValues.search || '').toLowerCase();
+      const matchesSearch = !searchTerm ||
+        doc.title.toLowerCase().includes(searchTerm) ||
+        doc.content.toLowerCase().includes(searchTerm) ||
+        doc.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+      
+      const matchesCategory = !filterValues.category || filterValues.category === 'all' || doc.category === filterValues.category;
+      const matchesStatus = !filterValues.status || filterValues.status === 'all' ||
+                           (filterValues.status === 'published' && doc.isPublished) ||
+                           (filterValues.status === 'draft' && !doc.isPublished);
+      const matchesAuthor = !filterValues.author || doc.author.toLowerCase().includes(filterValues.author.toLowerCase());
+      
+      return matchesSearch && matchesCategory && matchesStatus && matchesAuthor;
+    });
+
+    // Sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+          break;
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'category':
+          comparison = a.category.localeCompare(b.category);
+          break;
+        case 'author':
+          comparison = a.author.localeCompare(b.author);
+          break;
+      }
+      
+      return sortDirection === 'desc' ? -comparison : comparison;
+    });
+
+    return filtered;
+  }, [documents, activeSection, filterValues, sortBy, sortDirection]);
 
   const handleDocumentClick = (document: Document) => {
     setSelectedDocument(document);
@@ -93,16 +155,9 @@ const DocumentPage: React.FC = () => {
 
     setIsSaving(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Update the document in the list
-      setDocuments(prev => prev.map(doc =>
-        doc.id === selectedDocument.id
-          ? { ...doc, content: editedContent, updatedAt: new Date().toISOString().split('T')[0] }
-          : doc
-      ));
-
+      // Update the document using the context
+      updateDocument(selectedDocument.id, { content: editedContent });
+      
       // Update selected document
       setSelectedDocument(prev => prev ? { ...prev, content: editedContent } : null);
       setIsEditMode(false);
@@ -113,23 +168,72 @@ const DocumentPage: React.FC = () => {
     }
   };
 
-  const handleSortChange = (newSortBy: SortOption) => {
-    if (sortBy === newSortBy) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortDirection('desc');
-    }
+  const handleFilterChange = (key: string, value: any) => {
+    setFilterValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSortChange = (newSortBy: string, newDirection: SortDirection) => {
+    setSortBy(newSortBy);
+    setSortDirection(newDirection);
   };
 
   const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedCategory('all');
-    setStatusFilter('all');
-    setAuthorFilter('');
-    setSortBy('date');
-    setSortDirection('desc');
+    setFilterValues({
+      search: '',
+      category: '',
+      status: '',
+      author: ''
+    });
   };
+
+  // Filter configuration for UnifiedFilter
+  const filterFields: FilterField[] = useMemo(() => [
+    {
+      key: 'search',
+      label: 'Search',
+      type: 'text',
+      placeholder: 'Search documents, content, or tags...',
+      icon: <Search className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      type: 'select',
+      placeholder: 'All Categories',
+      options: [
+        { value: 'all', label: 'All Categories' },
+        ...documentCategories.map(cat => ({ value: cat.id, label: cat.name }))
+      ],
+      icon: <Tags className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      placeholder: 'All Status',
+      options: [
+        { value: 'all', label: 'All Status' },
+        { value: 'published', label: 'Published' },
+        { value: 'draft', label: 'Draft' }
+      ],
+      icon: <FileText className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'author',
+      label: 'Author',
+      type: 'text',
+      placeholder: 'Filter by author...',
+      icon: <User className="w-3 h-3 mr-1" />,
+    }
+  ], [documentCategories]);
+
+  // Sort options for UnifiedFilter
+  const sortOptions: UnifiedSortOption[] = [
+    { key: 'date', label: 'Date' },
+    { key: 'title', label: 'Title' },
+    { key: 'category', label: 'Category' },
+    { key: 'author', label: 'Author' }
+  ];
 
   // Enhanced keyboard navigation
   useEffect(() => {
@@ -145,24 +249,7 @@ const DocumentPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewMode]);
 
-  const SortButton = ({ sortKey, children }: { sortKey: SortOption; children: React.ReactNode }) => (
-    <motion.button
-      onClick={() => handleSortChange(sortKey)}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={cn(
-        'px-3 py-2 rounded-lg transition-all flex items-center gap-1 text-sm font-medium',
-        sortBy === sortKey
-          ? 'bg-gradient-to-r from-accent-cyan to-accent-purple text-white shadow-md'
-          : 'bg-muted/70 text-muted-foreground hover:text-foreground hover:bg-accent-cyan/20'
-      )}
-    >
-      {children}
-      {sortBy === sortKey && (
-        <SortAsc className={cn('w-3 h-3 transition-transform', sortDirection === 'desc' && 'rotate-180')} />
-      )}
-    </motion.button>
-  );
+
 
   const extractPlainText = (content: string) => {
     const tempDiv = document.createElement('div');
@@ -173,159 +260,43 @@ const DocumentPage: React.FC = () => {
   // List View Component
   const ListView = () => (
     <>
-      {/* Header */}
-      <div className="doax-card p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-accent-pink to-accent-purple bg-clip-text text-transparent">
-              Documentation Center
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Comprehensive guides and tutorials for DOAX Venus Vacation
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filter Controls */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="mb-6"
-      >
-        <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-          {/* Search Bar */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-muted/70 backdrop-blur-sm border border-border/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20 transition-all placeholder-muted-foreground"
-              placeholder="Search documents, content, or tags..."
-            />
-            {searchTerm && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-3 w-4 h-4 text-muted-foreground hover:text-accent-cyan transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </motion.button>
-            )}
-          </div>
-
-          {/* Filter Controls */}
-          <div className="flex items-center gap-3">
-            <motion.button
-              onClick={() => setShowFilters(!showFilters)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`px-4 py-3 rounded-xl transition-all flex items-center gap-2 ${
-                showFilters 
-                  ? 'bg-gradient-to-r from-accent-cyan to-accent-purple text-white shadow-lg' 
-                  : 'bg-muted/70 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-accent-cyan/20'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm font-medium">Filters</span>
-            </motion.button>
-
-            <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-3 rounded-xl border border-border/50">
-              <span className="text-accent-cyan font-medium">{filteredDocuments.length}</span> found
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Advanced Filters */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: -20 }}
-            animate={{ opacity: 1, height: 'auto', y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="mb-8 overflow-hidden"
-          >
-            <div className="doax-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-foreground flex items-center">
-                  <Filter className="w-5 h-5 mr-2 text-accent-cyan" />
-                  Advanced Filters
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Category</label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full bg-background/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                  >
-                    <option value="all">All Categories</option>
-                    {documentCategories.map(category => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Status</label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as 'all' | 'published' | 'draft')}
-                    className="w-full bg-background/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="published">Published</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Author</label>
-                  <input
-                    type="text"
-                    value={authorFilter}
-                    onChange={(e) => setAuthorFilter(e.target.value)}
-                    className="w-full bg-background/50 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                    placeholder="Filter by author..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3 mb-6">
-                <span className="text-sm text-muted-foreground flex items-center mr-2">
-                  <SortAsc className="w-4 h-4 mr-1" />
-                  Sort by:
-                </span>
-                <SortButton sortKey="date">Date</SortButton>
-                <SortButton sortKey="title">Title</SortButton>
-                <SortButton sortKey="category">Category</SortButton>
-                <SortButton sortKey="author">Author</SortButton>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <motion.button
-                  onClick={clearFilters}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-accent-pink/20 to-accent-purple/20 hover:from-accent-pink/30 hover:to-accent-purple/30 text-accent-pink border border-accent-pink/30 rounded-xl px-6 py-2 text-sm font-medium transition-all"
-                >
-                  Clear All Filters
-                </motion.button>
-                <div className="text-sm text-muted-foreground">
-                  <span className="text-accent-cyan font-medium">{filteredDocuments.length}</span> of {documents.length} documents
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Unified Filter */}
+      <UnifiedFilter
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+        filterFields={filterFields}
+        sortOptions={sortOptions}
+        filterValues={filterValues}
+        onFilterChange={handleFilterChange}
+        onClearFilters={clearFilters}
+        sortBy={sortBy}
+        sortDirection={sortDirection}
+        onSortChange={handleSortChange}
+        resultCount={filteredDocuments.length}
+        totalCount={documents.filter(doc => {
+          if (activeSection === 'checklist-creation') {
+            return doc.tags.some(tag => 
+              tag.toLowerCase().includes('checklist') || 
+              tag.toLowerCase().includes('creation') ||
+              tag.toLowerCase().includes('guide') ||
+              doc.category === 'checklist-creation'
+            );
+          } else if (activeSection === 'checking-guide') {
+            return doc.tags.some(tag => 
+              tag.toLowerCase().includes('checking') || 
+              tag.toLowerCase().includes('verification') ||
+              tag.toLowerCase().includes('validation') ||
+              doc.category === 'checking-guide'
+            );
+          }
+          return false;
+        }).length}
+        itemLabel="documents"
+        accentColor="accent-cyan"
+        secondaryColor="accent-purple"
+        blackTheme={true}
+        headerIcon={<FileText className="w-4 h-4" />}
+      />
 
       {/* Document Grid */}
       <div className="space-y-6">
@@ -333,7 +304,10 @@ const DocumentPage: React.FC = () => {
           <div className="doax-card p-12 text-center">
             <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-6" />
             <h3 className="text-xl font-semibold mb-2">No documents found</h3>
-            <p className="text-muted-foreground">Try adjusting your search filters</p>
+            <p className="text-muted-foreground">
+              No documents available for {documentSections.find(s => s.id === activeSection)?.title} section.
+              Try adjusting your search filters or switch to another section.
+            </p>
           </div>
         ) : (
           filteredDocuments.map((document) => (
@@ -421,7 +395,7 @@ const DocumentPage: React.FC = () => {
             className="px-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Documents
+            Back to {documentSections.find(s => s.id === activeSection)?.title}
           </Button>
 
           <Inline spacing="sm">
@@ -550,32 +524,68 @@ const DocumentPage: React.FC = () => {
     </Container>
   );
 
+  const renderSectionContent = () => {
+    if (viewMode === 'document' && selectedDocument) {
+      return <DocumentView />;
+    }
+    return <ListView />;
+  };
+
   return (
     <Container>
-      <AnimatePresence mode="wait">
-        {viewMode === 'list' && (
-          <motion.div
-            key="list"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ListView />
-          </motion.div>
-        )}
+      {/* Header */}
+      <Section
+        title="Documentation Center"
+        description="Comprehensive guides and tutorials for DOAX Venus Vacation"
+        action={
+          <StatusBadge status="success">
+            {filteredDocuments.length} Documents Available
+          </StatusBadge>
+        }
+      />
 
-        {viewMode === 'document' && selectedDocument && (
-          <motion.div
-            key="document"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <DocumentView />
-          </motion.div>
-        )}
+      {/* Section Navigation */}
+      <Card className="p-2 mb-6">
+        <Inline spacing="sm" wrap>
+          {documentSections.map(section => {
+            const IconComponent = section.icon;
+            return (
+              <button
+                key={section.id}
+                onClick={() => {
+                  setActiveSection(section.id);
+                  setViewMode('list');
+                  setSelectedDocument(null);
+                  setIsEditMode(false);
+                }}
+                className={cn(
+                  'flex-1 px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-medium min-w-0',
+                  'focus:ring-2 focus:ring-accent-cyan/20 focus:outline-none',
+                  activeSection === section.id
+                    ? 'bg-gradient-to-r from-accent-pink to-accent-purple text-white shadow-lg'
+                    : 'bg-muted/50 text-muted-foreground'
+                )}
+              >
+                <IconComponent className="w-4 h-4" />
+                <span className="hidden sm:inline">{section.title}</span>
+                <span className="sm:hidden">{section.title.split(' ')[0]}</span>
+              </button>
+            );
+          })}
+        </Inline>
+      </Card>
+
+      {/* Main Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`${activeSection}-${viewMode}`}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+        >
+          {renderSectionContent()}
+        </motion.div>
       </AnimatePresence>
     </Container>
   );

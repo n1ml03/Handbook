@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': '/frontend',
-      'mssql': '/frontend/lib/db/polyfills.ts',
+      'mysql2': '/frontend/lib/db/polyfills.ts',
     },
   },
   define: {
@@ -30,8 +30,7 @@ export default defineConfig({
         'path',
         'crypto',
         'node:*',
-        'mssql',
-        'tedious',
+        'mysql2',
         'cloudflare:sockets'
       ],
       output: {
@@ -39,8 +38,7 @@ export default defineConfig({
           'fs': '{}',
           'path': '{}',
           'crypto': '{}',
-          'mssql': '{}',
-          'tedious': '{}',
+          'mysql2': '{}',
           'cloudflare:sockets': '{}'
         }
       }

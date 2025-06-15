@@ -13,9 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { charactersData } from '@/data';
-
-type SortDirection = 'asc' | 'desc';
-type SortOption = 'name' | 'type' | 'level' | 'pow' | 'tec' | 'stm' | 'apl' | 'total';
+import UnifiedFilter, { FilterField, SortOption, SortDirection } from '@/components/UnifiedFilter';
 
 interface GirlCardProps {
   girl: any;
@@ -41,8 +39,6 @@ function GirlCard({ girl, onClick }: GirlCardProps) {
       default: return 'text-gray-400';
     }
   };
-
-  const totalStats = girl.stats.pow + girl.stats.tec + girl.stats.stm + girl.stats.apl;
 
   return (
     <motion.div
@@ -173,11 +169,11 @@ export default function GirlListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [sortBy, setSortBy] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [filter, setFilter] = useState({
-    type: '',
+  const [filterValues, setFilterValues] = useState({
     search: '',
+    type: '',
     minLevel: '',
     maxLevel: '',
     minPow: '',
@@ -190,18 +186,114 @@ export default function GirlListPage() {
 
   const itemsPerPage = 8;
 
+  // Filter fields configuration
+  const filterFields: FilterField[] = [
+    {
+      key: 'search',
+      label: 'Search',
+      type: 'text',
+      placeholder: 'Search girls...',
+      icon: <Search className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      type: 'select',
+      placeholder: 'All Types',
+      options: [
+        { value: 'pow', label: 'POW' },
+        { value: 'tec', label: 'TEC' },
+        { value: 'stm', label: 'STM' }
+      ],
+      icon: <Filter className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'minLevel',
+      label: 'Min Level',
+      type: 'number',
+      placeholder: '0',
+      min: 1,
+      icon: <Zap className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'maxLevel',
+      label: 'Max Level',
+      type: 'number',
+      placeholder: '99',
+      min: 1,
+      icon: <Zap className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'hasSwimsuit',
+      label: 'Has Swimsuit',
+      type: 'checkbox',
+      icon: <User className="w-3 h-3 mr-1" />,
+    },
+    {
+      key: 'hasAccessories',
+      label: 'Has Accessories',
+      type: 'checkbox',
+      icon: <User className="w-3 h-3 mr-1" />,
+    },
+    // Stat filters (expandable)
+    {
+      key: 'minPow',
+      label: 'Min POW',
+      type: 'number',
+      placeholder: '0',
+      min: 0,
+      icon: <Zap className="w-3 h-3 mr-1" />,
+      color: 'text-red-400',
+    },
+    {
+      key: 'minTec',
+      label: 'Min TEC',
+      type: 'number',
+      placeholder: '0',
+      min: 0,
+      icon: <Zap className="w-3 h-3 mr-1" />,
+      color: 'text-cyan-400',
+    },
+    {
+      key: 'minStm',
+      label: 'Min STM',
+      type: 'number',
+      placeholder: '0',
+      min: 0,
+      icon: <Zap className="w-3 h-3 mr-1" />,
+      color: 'text-yellow-400',
+    },
+    {
+      key: 'minApl',
+      label: 'Min APL',
+      type: 'number',
+      placeholder: '0',
+      min: 0,
+      icon: <Zap className="w-3 h-3 mr-1" />,
+      color: 'text-purple-400',
+    }
+  ];
+
+  // Sort options
+  const sortOptions: SortOption[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'type', label: 'Type' },
+    { key: 'level', label: 'Level' },
+    { key: 'total', label: 'Total Power' }
+  ];
+
   const filteredAndSortedGirls = useMemo(() => {
     let filtered = girls.filter(girl => {
-      if (filter.type && girl.type !== filter.type) return false;
-      if (filter.search && !girl.name.toLowerCase().includes(filter.search.toLowerCase())) return false;
-      if (filter.minLevel && girl.level < parseInt(filter.minLevel)) return false;
-      if (filter.maxLevel && girl.level > parseInt(filter.maxLevel)) return false;
-      if (filter.minPow && girl.stats.pow < parseInt(filter.minPow)) return false;
-      if (filter.minTec && girl.stats.tec < parseInt(filter.minTec)) return false;
-      if (filter.minStm && girl.stats.stm < parseInt(filter.minStm)) return false;
-      if (filter.minApl && girl.stats.apl < parseInt(filter.minApl)) return false;
-      if (filter.hasSwimsuit && !girl.swimsuit) return false;
-      if (filter.hasAccessories && girl.accessories.length === 0) return false;
+      if (filterValues.type && girl.type !== filterValues.type) return false;
+      if (filterValues.search && !girl.name.toLowerCase().includes(filterValues.search.toLowerCase())) return false;
+      if (filterValues.minLevel && girl.level < parseInt(filterValues.minLevel)) return false;
+      if (filterValues.maxLevel && girl.level > parseInt(filterValues.maxLevel)) return false;
+      if (filterValues.minPow && girl.stats.pow < parseInt(filterValues.minPow)) return false;
+      if (filterValues.minTec && girl.stats.tec < parseInt(filterValues.minTec)) return false;
+      if (filterValues.minStm && girl.stats.stm < parseInt(filterValues.minStm)) return false;
+      if (filterValues.minApl && girl.stats.apl < parseInt(filterValues.minApl)) return false;
+      if (filterValues.hasSwimsuit && !girl.swimsuit) return false;
+      if (filterValues.hasAccessories && girl.accessories.length === 0) return false;
       return true;
     });
 
@@ -221,22 +313,6 @@ export default function GirlListPage() {
           aValue = a.level;
           bValue = b.level;
           break;
-        case 'pow':
-          aValue = a.stats.pow;
-          bValue = b.stats.pow;
-          break;
-        case 'tec':
-          aValue = a.stats.tec;
-          bValue = b.stats.tec;
-          break;
-        case 'stm':
-          aValue = a.stats.stm;
-          bValue = b.stats.stm;
-          break;
-        case 'apl':
-          aValue = a.stats.apl;
-          bValue = b.stats.apl;
-          break;
         case 'total':
           aValue = a.stats.pow + a.stats.tec + a.stats.stm + a.stats.apl;
           bValue = b.stats.pow + b.stats.tec + b.stats.stm + b.stats.apl;
@@ -251,7 +327,7 @@ export default function GirlListPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [girls, filter, sortBy, sortDirection]);
+  }, [girls, filterValues, sortBy, sortDirection]);
 
   const totalPages = Math.ceil(filteredAndSortedGirls.length / itemsPerPage);
   const paginatedGirls = filteredAndSortedGirls.slice(
@@ -259,21 +335,20 @@ export default function GirlListPage() {
     currentPage * itemsPerPage
   );
 
-  const types = ['pow', 'tec', 'stm'];
+  const handleFilterChange = (key: string, value: any) => {
+    setFilterValues(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
 
-  const handleSortChange = (newSortBy: SortOption) => {
-    if (sortBy === newSortBy) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortDirection('desc');
-    }
+  const handleSortChange = (newSortBy: string, newDirection: SortDirection) => {
+    setSortBy(newSortBy);
+    setSortDirection(newDirection);
   };
 
   const clearFilters = () => {
-    setFilter({
-      type: '',
+    setFilterValues({
       search: '',
+      type: '',
       minLevel: '',
       maxLevel: '',
       minPow: '',
@@ -285,40 +360,6 @@ export default function GirlListPage() {
     });
     setCurrentPage(1);
   };
-
-  const getStatColor = (statType: string) => {
-    switch (statType) {
-      case 'pow': return 'text-red-400';
-      case 'tec': return 'text-cyan-400';
-      case 'stm': return 'text-yellow-400';
-      case 'apl': return 'text-purple-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const SortButton = ({ sortKey, children }: { sortKey: SortOption; children: React.ReactNode }) => (
-    <motion.button
-      onClick={() => handleSortChange(sortKey)}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={`flex items-center space-x-1 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-        sortBy === sortKey 
-          ? 'bg-gradient-to-r from-accent-pink to-accent-purple text-white shadow-lg' 
-          : 'bg-dark-card/50 border border-dark-border hover:bg-accent-pink/10 text-gray-300 hover:border-accent-pink/30'
-      }`}
-    >
-      <span>{children}</span>
-      {sortBy === sortKey && (
-        <motion.div
-          initial={{ rotate: 0 }}
-          animate={{ rotate: sortDirection === 'asc' ? 0 : 180 }}
-          transition={{ duration: 0.2 }}
-        >
-          <SortAsc className="w-3 h-3" />
-        </motion.div>
-      )}
-    </motion.button>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-primary">
@@ -338,233 +379,28 @@ export default function GirlListPage() {
         </motion.div>
 
         {/* Search and Filter Controls */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={filter.search}
-                onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-                className="w-full bg-muted/70 backdrop-blur-sm border border-border/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20 transition-all placeholder-muted-foreground"
-                placeholder="Search girls..."
-              />
-              {filter.search && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  onClick={() => setFilter(prev => ({ ...prev, search: '' }))}
-                  className="absolute right-3 top-3 w-4 h-4 text-muted-foreground hover:text-accent-cyan transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </motion.button>
-              )}
-            </div>
-
-            {/* Filter Controls */}
-            <div className="flex items-center gap-3">
-              <motion.button
-                onClick={() => setShowFilters(!showFilters)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`px-4 py-3 rounded-xl transition-all flex items-center gap-2 ${
-                  showFilters 
-                    ? 'bg-gradient-to-r from-accent-cyan to-accent-purple text-white shadow-lg' 
-                    : 'bg-muted/70 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-accent-cyan/20'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm font-medium">Filters</span>
-              </motion.button>
-
-              <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-3 rounded-xl border border-border/50">
-                <span className="text-accent-cyan font-medium">{filteredAndSortedGirls.length}</span> found
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Advanced Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -20 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="mb-8 overflow-hidden"
-            >
-              <div className="doax-card p-6">
-                {/* Filter Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-foreground flex items-center">
-                    <Filter className="w-5 h-5 mr-2 text-accent-cyan" />
-                    Advanced Filters
-                  </h3>
-                  <button
-                    onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                    className="text-sm text-accent-cyan hover:text-accent-pink transition-colors flex items-center"
-                  >
-                    {isFilterExpanded ? 'Show Less Stats' : 'Show Stat Filters'}
-                    <motion.div
-                      animate={{ rotate: isFilterExpanded ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="ml-1"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </motion.div>
-                  </button>
-                </div>
-
-                {/* Quick Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Search</label>
-                    <input
-                      type="text"
-                      value={filter.search}
-                      onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
-                      className="w-full bg-dark-primary/50 border border-dark-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                      placeholder="Search girls..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                    <select
-                      value={filter.type}
-                      onChange={(e) => setFilter(prev => ({ ...prev, type: e.target.value }))}
-                      className="w-full bg-dark-primary/50 border border-dark-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                    >
-                      <option value="">All Types</option>
-                      {types.map(type => (
-                        <option key={type} value={type}>{type.toUpperCase()}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Min Level</label>
-                    <input
-                      type="number"
-                      value={filter.minLevel}
-                      onChange={(e) => setFilter(prev => ({ ...prev, minLevel: e.target.value }))}
-                      className="w-full bg-dark-primary/50 border border-dark-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                      placeholder="Min"
-                      min="1"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Max Level</label>
-                    <input
-                      type="number"
-                      value={filter.maxLevel}
-                      onChange={(e) => setFilter(prev => ({ ...prev, maxLevel: e.target.value }))}
-                      className="w-full bg-dark-primary/50 border border-dark-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                      placeholder="Max"
-                      min="1"
-                    />
-                  </div>
-                </div>
-
-                {/* Equipment Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-3">Equipment</label>
-                    <div className="space-y-3">
-                      <label className="flex items-center space-x-3 p-3 bg-dark-primary/30 rounded-xl border border-dark-border/50 hover:border-accent-cyan/50 transition-all cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filter.hasSwimsuit}
-                          onChange={(e) => setFilter(prev => ({ ...prev, hasSwimsuit: e.target.checked }))}
-                          className="rounded border-dark-border text-accent-pink focus:ring-accent-pink/20"
-                        />
-                        <span className="text-sm text-gray-300">Has Swimsuit</span>
-                      </label>
-                      <label className="flex items-center space-x-3 p-3 bg-dark-primary/30 rounded-xl border border-dark-border/50 hover:border-accent-cyan/50 transition-all cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filter.hasAccessories}
-                          onChange={(e) => setFilter(prev => ({ ...prev, hasAccessories: e.target.checked }))}
-                          className="rounded border-dark-border text-accent-pink focus:ring-accent-pink/20"
-                        />
-                        <span className="text-sm text-gray-300">Has Accessories</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Extended Filters */}
-                <AnimatePresence>
-                  {isFilterExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        {(['pow', 'tec', 'stm', 'apl'] as const).map((stat) => (
-                          <div key={stat}>
-                            <label className={`block text-sm font-medium mb-2 flex items-center ${getStatColor(stat)}`}>
-                              <Zap className="w-3 h-3 mr-1" />
-                              Min {stat.toUpperCase()}
-                            </label>
-                            <input
-                              type="number"
-                              value={filter[`min${stat.charAt(0).toUpperCase() + stat.slice(1)}` as keyof typeof filter] as string}
-                              onChange={(e) => setFilter(prev => ({ 
-                                ...prev, 
-                                [`min${stat.charAt(0).toUpperCase() + stat.slice(1)}`]: e.target.value 
-                              }))}
-                              className="w-full bg-dark-primary/50 border border-dark-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-accent-cyan transition-all"
-                              placeholder="0"
-                              min="0"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Sort Options */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                  <span className="text-sm text-gray-400 flex items-center mr-2">
-                    <SortAsc className="w-4 h-4 mr-1" />
-                    Sort by:
-                  </span>
-                  <SortButton sortKey="name">Name</SortButton>
-                  <SortButton sortKey="type">Type</SortButton>
-                  <SortButton sortKey="level">Level</SortButton>
-                  <SortButton sortKey="total">Total Power</SortButton>
-                </div>
-
-                {/* Filter Actions */}
-                <div className="flex items-center justify-between">
-                  <motion.button
-                    onClick={clearFilters}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-accent-pink/20 to-accent-purple/20 hover:from-accent-pink/30 hover:to-accent-purple/30 text-accent-pink border border-accent-pink/30 rounded-xl px-6 py-2 text-sm font-medium transition-all"
-                  >
-                    Clear All Filters
-                  </motion.button>
-                  <div className="text-sm text-gray-500">
-                    <span className="text-accent-cyan font-medium">{filteredAndSortedGirls.length}</span> of {girls.length} girls
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <UnifiedFilter
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          filterFields={filterFields}
+          sortOptions={sortOptions}
+          filterValues={filterValues}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
+          resultCount={filteredAndSortedGirls.length}
+          totalCount={girls.length}
+          itemLabel="girls"
+          accentColor="accent-pink"
+          secondaryColor="accent-purple"
+          blackTheme={true}
+          expandableStats={true}
+          isFilterExpanded={isFilterExpanded}
+          setIsFilterExpanded={setIsFilterExpanded}
+          headerIcon={<User className="w-4 h-4" />}
+        />
 
         {/* Girl Display */}
         <motion.div

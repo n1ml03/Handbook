@@ -1,47 +1,39 @@
-import * as sql from 'mssql';
+import * as mysql from 'mysql2/promise';
 import logger from './logger';
 
 export interface DatabaseConfig {
-  server: string;
+  host: string;
   port: number;
   database: string;
   user: string;
   password: string;
-  options?: {
-    encrypt?: boolean;
-    trustServerCertificate?: boolean;
-    enableArithAbort?: boolean;
+  ssl?: {
+    rejectUnauthorized?: boolean;
   };
-  pool?: {
-    max?: number;
-    min?: number;
-    idleTimeoutMillis?: number;
-  };
-  requestTimeout?: number;
-  connectionTimeout?: number;
+  connectionLimit?: number;
+  acquireTimeout?: number;
+  timeout?: number;
+  reconnect?: boolean;
+  charset?: string;
 }
 
 const config: DatabaseConfig = {
-  server: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '1433'),
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
   database: process.env.DB_NAME || 'doaxvv_handbook',
   user: process.env.DB_USER || 'doaxvv_user',
   password: process.env.DB_PASSWORD || 'doaxvv_password',
-  options: {
-    encrypt: process.env.NODE_ENV === 'production',
-    trustServerCertificate: process.env.NODE_ENV !== 'production',
-    enableArithAbort: true,
-  },
-  pool: {
-    max: 20,
-    min: 0,
-    idleTimeoutMillis: 30000,
-  },
-  requestTimeout: 30000,
-  connectionTimeout: 15000,
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : undefined,
+  connectionLimit: 20,
+  acquireTimeout: 15000,
+  timeout: 30000,
+  reconnect: true,
+  charset: 'utf8mb4',
 };
 
-export const pool = new sql.ConnectionPool(config);
+export const pool = mysql.createPool(config);
 
 // Initialize connection pool
 let poolConnected = false;
@@ -49,11 +41,13 @@ let poolConnected = false;
 export async function initializePool(): Promise<void> {
   if (!poolConnected) {
     try {
-      await pool.connect();
+      // Test the connection
+      const connection = await pool.getConnection();
+      connection.release();
       poolConnected = true;
-      logger.info('SQL Server connection pool initialized');
+      logger.info('MySQL connection pool initialized');
     } catch (error) {
-      logger.error('Failed to initialize SQL Server connection pool:', error);
+      logger.error('Failed to initialize MySQL connection pool:', error);
       throw error;
     }
   }
@@ -65,8 +59,7 @@ export async function testConnection(): Promise<boolean> {
     if (!poolConnected) {
       await initializePool();
     }
-    const request = pool.request();
-    await request.query('SELECT GETDATE() as current_time');
+    await pool.execute('SELECT NOW() as current_time');
     logger.info('Database connection successful');
     return true;
   } catch (error) {
@@ -79,7 +72,7 @@ export async function testConnection(): Promise<boolean> {
 export async function closeDatabase(): Promise<void> {
   try {
     if (poolConnected) {
-      await pool.close();
+      await pool.end();
       poolConnected = false;
       logger.info('Database connection pool closed');
     }
@@ -88,12 +81,20 @@ export async function closeDatabase(): Promise<void> {
   }
 }
 
-// Get a request object from the pool
-export function getRequest(): sql.Request {
+// Get a connection from the pool
+export async function getConnection(): Promise<mysql.PoolConnection> {
   if (!poolConnected) {
     throw new Error('Database pool not initialized. Call initializePool() first.');
   }
-  return pool.request();
+  return await pool.getConnection();
+}
+
+// Execute a query with the pool
+export async function executeQuery(query: string, params?: any[]): Promise<any> {
+  if (!poolConnected) {
+    await initializePool();
+  }
+  return await pool.execute(query, params);
 }
 
 // Export for direct use

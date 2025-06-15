@@ -137,7 +137,7 @@ const UpdateLog: React.FC = () => {
                           <div>
                             <h4 className="font-semibold text-foreground mb-2 text-lg">{update.title}</h4>
                             <p className="text-muted-foreground leading-relaxed">
-                              {update.description}
+                              {update.content}
                             </p>
                           </div>
 
@@ -159,7 +159,7 @@ const UpdateLog: React.FC = () => {
                             {/* Features */}
                             <div className="animate-in slide-in-from-left-4 duration-500 delay-300">
                               <h5 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                                <Sparkles className="w-5 h-5 mr-2 text-accent-cyan animate-pulse" />
+                                <Sparkles className="w-5 h-5 mr-2 text-accent-cyan" />
                                 New Features
                               </h5>
                             </div>
@@ -168,7 +168,7 @@ const UpdateLog: React.FC = () => {
                             {update.technicalDetails.length > 0 && (
                               <div className="animate-in slide-in-from-left-4 duration-500 delay-400">
                                 <h5 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                                  <Code className="w-5 h-5 mr-2 text-accent-gold animate-pulse" />
+                                  <Code className="w-5 h-5 mr-2 text-accent-gold" />
                                   Technical Details
                                 </h5>
                                 <div className="space-y-3">
@@ -186,7 +186,7 @@ const UpdateLog: React.FC = () => {
                             {update.bugFixes.length > 0 && (
                               <div className="animate-in slide-in-from-left-4 duration-500 delay-500">
                                 <h5 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                                  <Shield className="w-5 h-5 mr-2 text-accent-purple animate-pulse" />
+                                  <Shield className="w-5 h-5 mr-2 text-accent-purple" />
                                   Bug Fixes
                                 </h5>
                                 <div className="space-y-3">
@@ -204,7 +204,7 @@ const UpdateLog: React.FC = () => {
                             {update.screenshots.length > 0 && (
                               <div className="animate-in slide-in-from-left-4 duration-500 delay-600">
                                 <h5 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                                  <ImageIcon className="w-5 h-5 mr-2 text-accent-pink animate-pulse" />
+                                  <ImageIcon className="w-5 h-5 mr-2 text-accent-pink" />
                                   Images
                                 </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -225,30 +225,6 @@ const UpdateLog: React.FC = () => {
                                       </Button>
                                     </div>
                                   ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Metrics */}
-                            {update.metrics && (
-                              <div className="animate-in slide-in-from-left-4 duration-500 delay-700">
-                                <h5 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                                  <Activity className="w-5 h-5 mr-2 text-accent-cyan animate-pulse" />
-                                  Performance Metrics
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  <div className="p-4 rounded-lg bg-background/50 border border-accent-cyan/20">
-                                    <div className="text-2xl font-bold text-accent-cyan">{update.metrics.performanceImprovement}</div>
-                                    <div className="text-sm text-muted-foreground">Performance Improvement</div>
-                                  </div>
-                                  <div className="p-4 rounded-lg bg-background/50 border border-accent-pink/20">
-                                    <div className="text-2xl font-bold text-accent-pink">{update.metrics.userSatisfaction}</div>
-                                    <div className="text-sm text-muted-foreground">User Satisfaction</div>
-                                  </div>
-                                  <div className="p-4 rounded-lg bg-background/50 border border-accent-purple/20">
-                                    <div className="text-2xl font-bold text-accent-purple">{update.metrics.bugReports}</div>
-                                    <div className="text-sm text-muted-foreground">Bug Reports Change</div>
-                                  </div>
                                 </div>
                               </div>
                             )}

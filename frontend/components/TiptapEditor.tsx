@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useEditor, EditorContent, BubbleMenu, FloatingMenu } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -14,6 +14,8 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
 import TextAlign from '@tiptap/extension-text-align';
+import { motion, AnimatePresence } from 'framer-motion';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import {
   Bold,
   Italic,
@@ -32,15 +34,23 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify,
   Type,
   Palette,
-  MoreHorizontal,
   Eye,
-  Edit3
+  Edit3,
+  Smile,
+  Keyboard,
+  Upload,
+  Trash2,
+  Plus,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface TiptapEditorProps {
   content: string;
@@ -70,7 +80,10 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
   mode = 'full'
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -85,6 +98,7 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
         HTMLAttributes: {
           class: 'max-w-full h-auto rounded-lg shadow-md my-4',
         },
+        allowBase64: true,
       }),
       Table.configure({
         resizable: true,
@@ -196,25 +210,105 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
     <div className="w-px h-6 bg-border/50 mx-1" />
   );
 
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && editor) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        editor.chain().focus().setImage({ src: base64 }).run();
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [editor]);
+
+  const handleEmojiClick = useCallback((emojiData: EmojiClickData) => {
+    if (editor) {
+      editor.chain().focus().insertContent(emojiData.emoji).run();
+    }
+    setShowEmojiPicker(false);
+  }, [editor]);
+
+  const KeyboardShortcutsDialog = () => (
+    <Dialog open={showKeyboardShortcuts} onOpenChange={setShowKeyboardShortcuts}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Keyboard Shortcuts</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold">Text Formatting</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <span>Bold</span>
+              <span className="text-muted-foreground">Ctrl + B</span>
+              <span>Italic</span>
+              <span className="text-muted-foreground">Ctrl + I</span>
+              <span>Strikethrough</span>
+              <span className="text-muted-foreground">Ctrl + Shift + S</span>
+              <span>Code</span>
+              <span className="text-muted-foreground">Ctrl + `</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold">Structure</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <span>Heading 1</span>
+              <span className="text-muted-foreground">Ctrl + Alt + 1</span>
+              <span>Heading 2</span>
+              <span className="text-muted-foreground">Ctrl + Alt + 2</span>
+              <span>Bullet List</span>
+              <span className="text-muted-foreground">Ctrl + Shift + 8</span>
+              <span>Numbered List</span>
+              <span className="text-muted-foreground">Ctrl + Shift + 7</span>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   const ColorPicker = ({ onColorSelect }: { onColorSelect: (color: string) => void }) => {
     const colors = [
-      '#000000', '#374151', '#6B7280', '#9CA3AF',
-      '#EF4444', '#F97316', '#EAB308', '#22C55E',
-      '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4'
+      { name: 'Black', value: '#000000' },
+      { name: 'Gray 800', value: '#374151' },
+      { name: 'Gray 600', value: '#6B7280' },
+      { name: 'Gray 400', value: '#9CA3AF' },
+      { name: 'Red', value: '#EF4444' },
+      { name: 'Orange', value: '#F97316' },
+      { name: 'Yellow', value: '#EAB308' },
+      { name: 'Green', value: '#22C55E' },
+      { name: 'Blue', value: '#3B82F6' },
+      { name: 'Purple', value: '#8B5CF6' },
+      { name: 'Pink', value: '#EC4899' },
+      { name: 'Cyan', value: '#06B6D4' }
     ];
 
     return (
-      <div className="flex flex-wrap gap-1 p-2 bg-background border border-border rounded-lg shadow-lg">
-        {colors.map((color) => (
-          <button
-            key={color}
-            onClick={() => onColorSelect(color)}
-            className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
-            style={{ backgroundColor: color }}
-            title={color}
-          />
-        ))}
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        className="p-3 bg-background border border-border rounded-lg shadow-lg"
+      >
+        <div className="grid grid-cols-6 gap-2">
+          {colors.map((color) => (
+            <TooltipProvider key={color.value}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onColorSelect(color.value)}
+                    className="w-8 h-8 rounded border border-border hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color.value }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{color.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+        </div>
+      </motion.div>
     );
   };
 
@@ -267,87 +361,90 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
 
   return (
     <div className="w-full space-y-2">
-      {/* Enhanced Bubble Menu */}
+      {/* Enhanced Bubble Menu with animations */}
       {editor && (
-        <BubbleMenu
-          editor={editor}
-          tippyOptions={{ duration: 100, placement: 'top' }}
-          className="bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-2 flex items-center gap-1"
-        >
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={editor.isActive('bold')}
-            title="Bold (Ctrl+B)"
+        <AnimatePresence>
+          <BubbleMenu
+            editor={editor}
+            tippyOptions={{ duration: 100, placement: 'top' }}
+            className="bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-2 flex items-center gap-1"
           >
-            <Bold className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={editor.isActive('italic')}
-            title="Italic (Ctrl+I)"
-          >
-            <Italic className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            isActive={editor.isActive('strike')}
-            title="Strikethrough"
-          >
-            <Strikethrough className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarDivider />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            isActive={editor.isActive('highlight')}
-            title="Highlight"
-          >
-            <Highlighter className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={addLink}
-            isActive={editor.isActive('link')}
-            title="Add Link"
-          >
-            <LinkIcon className="h-4 w-4" />
-          </ToolbarButton>
-        </BubbleMenu>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              isActive={editor.isActive('bold')}
+              title="Bold (Ctrl+B)"
+            >
+              <Bold className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              isActive={editor.isActive('italic')}
+              title="Italic (Ctrl+I)"
+            >
+              <Italic className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              isActive={editor.isActive('strike')}
+              title="Strikethrough"
+            >
+              <Strikethrough className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarDivider />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHighlight().run()}
+              isActive={editor.isActive('highlight')}
+              title="Highlight"
+            >
+              <Highlighter className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={addLink}
+              isActive={editor.isActive('link')}
+              title="Add Link"
+            >
+              <LinkIcon className="h-4 w-4" />
+            </ToolbarButton>
+          </BubbleMenu>
+        </AnimatePresence>
       )}
 
-      {/* Floating Menu for empty lines */}
+      {/* Enhanced Floating Menu with animations */}
       {editor && (
-        <FloatingMenu
-          editor={editor}
-          tippyOptions={{ duration: 100, placement: 'left' }}
-          className="bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-2 flex flex-col gap-1"
-        >
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            isActive={editor.isActive('heading', { level: 1 })}
-            title="Heading 1"
+        <AnimatePresence>
+          <FloatingMenu
+            editor={editor}
+            tippyOptions={{ duration: 100, placement: 'left' }}
+            className="bg-background/95 backdrop-blur-sm border border-border rounded-xl shadow-xl p-2 flex flex-col gap-1"
           >
-            <Type className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            isActive={editor.isActive('bulletList')}
-            title="Bullet List"
-          >
-            <List className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            isActive={editor.isActive('blockquote')}
-            title="Quote"
-          >
-            <Quote className="h-4 w-4" />
-          </ToolbarButton>
-        </FloatingMenu>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              isActive={editor.isActive('heading', { level: 1 })}
+              title="Heading 1"
+            >
+              <Type className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              isActive={editor.isActive('bulletList')}
+              title="Bullet List"
+            >
+              <List className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              isActive={editor.isActive('blockquote')}
+              title="Quote"
+            >
+              <Quote className="h-4 w-4" />
+            </ToolbarButton>
+          </FloatingMenu>
+        </AnimatePresence>
       )}
 
       {/* Enhanced Main Toolbar */}
       {editable && showToolbar && mode !== 'inline' && (
         <div className="border border-border rounded-t-xl bg-gradient-to-r from-muted/30 to-muted/20 backdrop-blur-sm">
-          {/* Top Row - Main Controls */}
           <div className="p-3 flex flex-wrap items-center gap-2">
             {/* History Controls */}
             <div className="flex items-center gap-1">
@@ -515,6 +612,35 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
 
             <ToolbarDivider />
 
+            {/* New Media Controls */}
+            <div className="flex items-center gap-1">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileUpload}
+              />
+              <ToolbarButton
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload Image"
+              >
+                <Upload className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                title="Insert Emoji"
+              >
+                <Smile className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => setShowKeyboardShortcuts(true)}
+                title="Keyboard Shortcuts"
+              >
+                <Keyboard className="h-4 w-4" />
+              </ToolbarButton>
+            </div>
+
             {/* Color and Highlight */}
             <div className="flex items-center gap-1 relative">
               <ToolbarButton
@@ -597,6 +723,20 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
           )}
         />
 
+        {/* Emoji Picker */}
+        <AnimatePresence>
+          {showEmojiPicker && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="absolute top-full right-0 mt-2 z-50"
+            >
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Character limit warning */}
         {isAtLimit() && maxCharacters && (
           <div className="absolute bottom-2 right-2 bg-destructive/10 text-destructive text-xs px-2 py-1 rounded-lg border border-destructive/20">
@@ -604,6 +744,9 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({
           </div>
         )}
       </div>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog />
 
       {/* Minimal mode stats */}
       {mode === 'minimal' && (showCharacterCount || showWordCount) && (

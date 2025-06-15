@@ -43,7 +43,10 @@ export const UpdateLogsProvider: React.FC<UpdateLogsProviderProps> = ({ children
 
   const addUpdateLog = async (log: Omit<UpdateLog, 'id'>): Promise<UpdateLog> => {
     try {
-      const newLog = updateLogsService.addUpdateLog(log);
+      const newLog = updateLogsService.addUpdateLog({
+        ...log,
+        content: log.content || log.description || ''
+      });
       setUpdateLogs(prev => [newLog, ...prev]);
       return newLog;
     } catch (error) {
@@ -54,7 +57,10 @@ export const UpdateLogsProvider: React.FC<UpdateLogsProviderProps> = ({ children
 
   const updateUpdateLog = async (id: string, updates: Partial<UpdateLog>): Promise<UpdateLog | null> => {
     try {
-      const updatedLog = updateLogsService.updateUpdateLog(id, updates);
+      const updatedLog = updateLogsService.updateUpdateLog(id, {
+        ...updates,
+        content: updates.content || updates.description || ''
+      });
       if (updatedLog) {
         setUpdateLogs(prev => prev.map(log => log.id === id ? updatedLog : log));
       }
