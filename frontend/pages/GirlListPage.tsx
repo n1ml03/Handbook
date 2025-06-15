@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { charactersData } from '@/data';
 import UnifiedFilter, { FilterField, SortOption, SortDirection } from '@/components/UnifiedFilter';
+import { addTranslationsToItems, searchInAllLanguages, type MultiLanguageItem } from '@/lib/multiLanguageSearch';
 import React from 'react';
 
 interface GirlCardProps {
@@ -185,13 +186,18 @@ export default function GirlListPage() {
 
   const itemsPerPage = 8;
 
+  // Add multi-language support to girls data
+  const multiLanguageGirls = useMemo(() => {
+    return addTranslationsToItems(girls);
+  }, [girls]);
+
   // Filter fields configuration
   const filterFields: FilterField[] = [
     {
       key: 'search',
       label: 'Search',
       type: 'text',
-      placeholder: 'Search girls...',
+      placeholder: 'Search girls in all languages...',
       icon: <Search className="w-3 h-3 mr-1" />,
     },
     {
@@ -282,9 +288,10 @@ export default function GirlListPage() {
   ];
 
   const filteredAndSortedGirls = useMemo(() => {
-    let filtered = girls.filter(girl => {
+    let filtered = multiLanguageGirls.filter(girl => {
       if (filterValues.type && girl.type !== filterValues.type) return false;
-      if (filterValues.search && !girl.name.toLowerCase().includes(filterValues.search.toLowerCase())) return false;
+      // Use multi-language search instead of simple string matching
+      if (filterValues.search && !searchInAllLanguages(girl, filterValues.search)) return false;
       if (filterValues.minLevel && girl.level < parseInt(filterValues.minLevel)) return false;
       if (filterValues.maxLevel && girl.level > parseInt(filterValues.maxLevel)) return false;
       if (filterValues.minPow && girl.stats.pow < parseInt(filterValues.minPow)) return false;
@@ -326,7 +333,7 @@ export default function GirlListPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [girls, filterValues, sortBy, sortDirection]);
+  }, [multiLanguageGirls, filterValues, sortBy, sortDirection]);
 
   const totalPages = useMemo(() => Math.ceil(filteredAndSortedGirls.length / itemsPerPage), [filteredAndSortedGirls.length, itemsPerPage]);
   const paginatedGirls = useMemo(() => filteredAndSortedGirls.slice(

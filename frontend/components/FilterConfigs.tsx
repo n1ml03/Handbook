@@ -8,7 +8,7 @@ export const createAccessoryFilterConfig = (rarities: string[], types: string[],
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search accessories...',
+    placeholder: 'Search accessories in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -79,7 +79,7 @@ export const createSwimsuitFilterConfig = (rarities: string[], characters: strin
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search swimsuits...',
+    placeholder: 'Search swimsuits in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -163,7 +163,7 @@ export const createGirlFilterConfig = (types: string[]): FilterField[] => [
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search girls...',
+    placeholder: 'Search girls in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -353,7 +353,7 @@ export const createSkillFilterConfig = (skillTypes: string[], targets: string[])
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search skills...',
+    placeholder: 'Search skills in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -437,7 +437,7 @@ export const createDecorBromideFilterConfig = (types: string[], rarities: string
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search bromides and decorations...',
+    placeholder: 'Search bromides and decorations in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -497,7 +497,7 @@ export const createMemoriesFilterConfig = (types: string[], characters: string[]
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search memories...',
+    placeholder: 'Search memories in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {
@@ -536,7 +536,7 @@ export const createFestivalFilterConfig = (types: string[], statuses: string[], 
     key: 'search',
     label: 'Search',
     type: 'text',
-    placeholder: 'Search festivals...',
+    placeholder: 'Search festivals in all languages...',
     icon: <Search className="w-3 h-3 mr-1" />,
   },
   {

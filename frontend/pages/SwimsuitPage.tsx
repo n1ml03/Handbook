@@ -17,6 +17,7 @@ import {
   User
 } from 'lucide-react';
 import { swimsuitsData, type Swimsuit } from '@/data';
+import { addTranslationsToItems, searchInAllLanguages, type MultiLanguageItem } from '@/lib/multiLanguageSearch';
 import React from 'react';
 
 // SwimsuitCard Component
@@ -456,12 +457,17 @@ export default function SwimsuitPage() {
 
   const itemsPerPage = 8;
 
+  // Add multi-language support to swimsuits data
+  const multiLanguageSwimsuits = useMemo(() => {
+    return addTranslationsToItems(swimsuits);
+  }, [swimsuits]);
+
   const filteredAndSortedSwimsuits = useMemo(() => {
-    let filtered = swimsuits.filter(swimsuit => {
+    let filtered = multiLanguageSwimsuits.filter(swimsuit => {
       if (filter.rarity && swimsuit.rarity !== filter.rarity) return false;
       if (filter.character && swimsuit.character !== filter.character) return false;
-      if (filter.search && !swimsuit.name.toLowerCase().includes(filter.search.toLowerCase()) && 
-          !swimsuit.character.toLowerCase().includes(filter.search.toLowerCase())) return false;
+      // Use multi-language search instead of simple string matching
+      if (filter.search && !searchInAllLanguages(swimsuit, filter.search)) return false;
       if (filter.minPow && swimsuit.stats.pow < parseInt(filter.minPow)) return false;
       if (filter.minTec && swimsuit.stats.tec < parseInt(filter.minTec)) return false;
       if (filter.minStm && swimsuit.stats.stm < parseInt(filter.minStm)) return false;
@@ -523,7 +529,7 @@ export default function SwimsuitPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [swimsuits, filter, sortBy, sortDirection]);
+  }, [multiLanguageSwimsuits, filter, sortBy, sortDirection]);
 
   const totalPages = Math.ceil(filteredAndSortedSwimsuits.length / itemsPerPage);
   const paginatedSwimsuits = filteredAndSortedSwimsuits.slice(
@@ -628,7 +634,7 @@ export default function SwimsuitPage() {
                 value={filter.search}
                 onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
                 className="w-full bg-muted/70 backdrop-blur-sm border border-border/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20 transition-all placeholder-muted-foreground"
-                placeholder="Search swimsuits, characters..."
+                placeholder="Search swimsuits, characters in all languages..."
               />
               {filter.search && (
                 <motion.button

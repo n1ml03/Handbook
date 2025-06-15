@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { skillsData } from '@/data';
 import { skillsDetailedData } from '@/data';
+import { addTranslationsToItems, searchInAllLanguages, type MultiLanguageItem } from '@/lib/multiLanguageSearch';
 
 type SortDirection = 'asc' | 'desc';
 type SortOption = 'name' | 'type' | 'id';
@@ -134,11 +135,16 @@ export default function SkillsPage() {
     return skillsDetailedData;
   }, [skills]);
 
+  // Add multi-language support to skills data
+  const multiLanguageSkills = useMemo(() => {
+    return addTranslationsToItems(sampleSkills);
+  }, [sampleSkills]);
+
   const filteredAndSortedSkills = useMemo(() => {
-    let filtered = sampleSkills.filter((skill: any) => {
+    let filtered = multiLanguageSkills.filter((skill: any) => {
       if (filter.type && skill.type !== filter.type) return false;
-      if (filter.search && !skill.name.toLowerCase().includes(filter.search.toLowerCase()) && 
-          !skill.description.toLowerCase().includes(filter.search.toLowerCase())) return false;
+      // Use multi-language search instead of simple string matching
+      if (filter.search && !searchInAllLanguages(skill, filter.search)) return false;
       if (filter.hasEffects && (!skill.effects || skill.effects.length === 0)) return false;
       return true;
     });
@@ -167,7 +173,7 @@ export default function SkillsPage() {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [sampleSkills, filter, sortBy, sortDirection]);
+  }, [multiLanguageSkills, filter, sortBy, sortDirection]);
 
   const totalPages = Math.ceil(filteredAndSortedSkills.length / itemsPerPage);
   const paginatedSkills = filteredAndSortedSkills.slice(
@@ -250,7 +256,7 @@ export default function SkillsPage() {
                 value={filter.search}
                 onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
                 className="w-full bg-dark-card/70 backdrop-blur-sm border border-dark-border/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20 transition-all placeholder-gray-500"
-                placeholder="Search skills..."
+                placeholder="Search skills in all languages..."
               />
               {filter.search && (
                 <motion.button

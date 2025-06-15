@@ -9,6 +9,7 @@ import { accessoriesData } from '@/data';
 import { accessoriesDetailedData } from '@/data';
 import UnifiedFilter, { SortDirection } from '../components/UnifiedFilter';
 import { createAccessoryFilterConfig, accessorySortOptions } from '../components/FilterConfigs';
+import { addTranslationsToItems, searchInAllLanguages, type MultiLanguageItem } from '@/lib/multiLanguageSearch';
 import React from 'react';
 
 const accessoryTypes = ['Necklace', 'Earrings', 'Bracelet', 'Ring', 'Hair', 'Other'] as const;
@@ -175,13 +176,18 @@ export default function AccessoryPage() {
     return accessoriesDetailedData;
   }, [accessories]);
 
+  // Add multi-language support to accessories data
+  const multiLanguageAccessories = useMemo(() => {
+    return addTranslationsToItems(sampleAccessories);
+  }, [sampleAccessories]);
+
   const filteredAndSortedAccessories = useMemo(() => {
-    let filtered = sampleAccessories.filter(accessory => {
+    let filtered = multiLanguageAccessories.filter(accessory => {
       if (filterValues.rarity && accessory.rarity !== filterValues.rarity) return false;
       if (filterValues.type && accessory.type !== filterValues.type) return false;
       if (filterValues.version && !accessory.id.includes(filterValues.version)) return false; // Simple version check
-      if (filterValues.search && !accessory.name.toLowerCase().includes(filterValues.search.toLowerCase()) && 
-          !accessory.skill.toLowerCase().includes(filterValues.search.toLowerCase())) return false;
+      // Use multi-language search instead of simple string matching
+      if (filterValues.search && !searchInAllLanguages(accessory, filterValues.search)) return false;
       if (filterValues.minPow && accessory.stats.pow < parseInt(filterValues.minPow)) return false;
       if (filterValues.minTec && accessory.stats.tec < parseInt(filterValues.minTec)) return false;
       if (filterValues.minStm && accessory.stats.stm < parseInt(filterValues.minStm)) return false;
@@ -236,7 +242,7 @@ export default function AccessoryPage() {
       }
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     });
-  }, [sampleAccessories, filterValues, sortBy, sortDirection]);
+  }, [multiLanguageAccessories, filterValues, sortBy, sortDirection]);
 
   const totalPages = useMemo(() => Math.ceil(filteredAndSortedAccessories.length / itemsPerPage), [filteredAndSortedAccessories.length, itemsPerPage]);
   const paginatedAccessories = useMemo(() => filteredAndSortedAccessories.slice(

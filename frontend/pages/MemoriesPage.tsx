@@ -9,11 +9,12 @@ import {
   RefreshCw,
   Calendar,
   Camera} from 'lucide-react';
+import { useMultiLanguageSearchWithPagination, createAdvancedFilter } from '@/lib/useMultiLanguageSearch';
 import React from 'react';
 
 interface Memory {
   id: string;
-  title: string;
+  name: string; // Changed from title to name for consistency
   description: string;
   type: 'photo' | 'video' | 'story' | 'scene';
   date: string;
@@ -28,7 +29,7 @@ interface Memory {
 const mockMemories: Memory[] = [
   {
     id: '1',
-    title: 'Summer Beach Day',
+    name: 'Summer Beach Day',
     description: 'A perfect day at the beach with beautiful weather and amazing memories.',
     type: 'photo',
     date: '2024-07-15',
@@ -40,7 +41,7 @@ const mockMemories: Memory[] = [
   },
   {
     id: '2',
-    title: 'Festival Night',
+    name: 'Festival Night',
     description: 'Celebrating at the summer festival with fireworks and traditional games.',
     type: 'video',
     date: '2024-08-01',
@@ -52,7 +53,7 @@ const mockMemories: Memory[] = [
   },
   {
     id: '3',
-    title: 'Cooking Together',
+    name: 'Cooking Together',
     description: 'Learning to cook traditional dishes in the island kitchen.',
     type: 'scene',
     date: '2024-06-20',
@@ -64,7 +65,7 @@ const mockMemories: Memory[] = [
   },
   {
     id: '4',
-    title: 'Sunrise Yoga',
+    name: 'Sunrise Yoga',
     description: 'Morning yoga session on the beach as the sun rises.',
     type: 'photo',
     date: '2024-07-22',
@@ -76,7 +77,7 @@ const mockMemories: Memory[] = [
   },
   {
     id: '5',
-    title: 'Beach Volleyball Match',
+    name: 'Beach Volleyball Match',
     description: 'An exciting volleyball match on the sandy courts.',
     type: 'video',
     date: '2024-08-10',
@@ -88,7 +89,7 @@ const mockMemories: Memory[] = [
   },
   {
     id: '6',
-    title: 'Secret Garden Discovery',
+    name: 'Secret Garden Discovery',
     description: 'Finding a hidden garden full of beautiful flowers.',
     type: 'story',
     date: '2024-06-05',
@@ -101,7 +102,7 @@ const mockMemories: Memory[] = [
 ];
 
 type SortDirection = 'asc' | 'desc';
-type SortOption = 'title' | 'date' | 'type';
+type SortOption = 'name' | 'date' | 'type';
 
 interface MemoryCardProps {
   memory: Memory;
@@ -132,7 +133,7 @@ const MemoryCard = React.memo(function MemoryCard({ memory, onToggleFavorite }: 
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-bold text-white text-lg truncate">{memory.title}</h3>
+              <h3 className="font-bold text-white text-lg truncate">{memory.name}</h3>
             </div>
           </div>
           
@@ -217,54 +218,40 @@ export default function MemoriesPage() {
 
   const itemsPerPage = 8;
 
-  const filteredAndSortedMemories = useMemo(() => {
-    let filtered = memories.filter(memory => {
-      if (filter.search && !memory.title.toLowerCase().includes(filter.search.toLowerCase()) && 
-          !memory.description.toLowerCase().includes(filter.search.toLowerCase())) return false;
-      
-      if (filter.type && memory.type !== filter.type) return false;
-      if (filter.character && !memory.characters.some(char => 
-          char.toLowerCase().includes(filter.character.toLowerCase()))) return false;
-      if (filter.favorite && !memory.favorite) return false;
-      if (filter.tag && !memory.tags.some(tag => 
-          tag.toLowerCase().includes(filter.tag.toLowerCase()))) return false;
-      
-      return true;
-    });
+  // Use multi-language search with advanced filtering
+  const advancedFilter = useMemo(() => createAdvancedFilter({
+    search: filter.search,
+    type: filter.type,
+    booleanFilters: {
+      favorite: filter.favorite
+    }
+  }), [filter]);
 
-    return filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-      
-      switch (sortBy) {
-        case 'title':
-          aValue = a.title.toLowerCase();
-          bValue = b.title.toLowerCase();
-          break;
-        case 'date':
-          aValue = new Date(a.date).getTime();
-          bValue = new Date(b.date).getTime();
-          break;
-        case 'type':
-          aValue = a.type.toLowerCase();
-          bValue = b.type.toLowerCase();
-          break;
-        default:
-          aValue = a.title.toLowerCase();
-          bValue = b.title.toLowerCase();
-      }
-      
-      if (typeof aValue === 'string') {
-        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-    });
-  }, [memories, filter, sortBy, sortDirection]);
+  const additionalFilter = useMemo(() => (memory: Memory & { translations: any }) => {
+    // Character filter
+    if (filter.character && !memory.characters.some((char: string) => 
+        char.toLowerCase().includes(filter.character.toLowerCase()))) return false;
+    
+    // Tag filter
+    if (filter.tag && !memory.tags.some((tag: string) => 
+        tag.toLowerCase().includes(filter.tag.toLowerCase()))) return false;
+    
+    return advancedFilter(memory);
+  }, [filter, advancedFilter]);
 
-  const totalPages = useMemo(() => Math.ceil(filteredAndSortedMemories.length / itemsPerPage), [filteredAndSortedMemories.length, itemsPerPage]);
-  const paginatedMemories = useMemo(() => filteredAndSortedMemories.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  ), [filteredAndSortedMemories, currentPage, itemsPerPage]);
+  const { 
+    items: paginatedMemories, 
+    allFilteredItems: filteredAndSortedMemories,
+    totalPages 
+  } = useMultiLanguageSearchWithPagination(
+    memories,
+    filter.search,
+    currentPage,
+    itemsPerPage,
+    additionalFilter,
+         sortBy,
+    sortDirection
+  );
 
   const characters = [...new Set(memories.flatMap(m => m.characters))].sort();
   const types = ['photo', 'video', 'story', 'scene'];
@@ -353,7 +340,7 @@ export default function MemoriesPage() {
                 value={filter.search}
                 onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
                 className="w-full bg-gray-900/70 backdrop-blur-sm border border-gray-700/50 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-500/20 transition-all placeholder-gray-500 text-white"
-                placeholder="Search memories..."
+                placeholder="Search memories in all languages..."
               />
               {filter.search && (
                 <motion.button
@@ -485,7 +472,7 @@ export default function MemoriesPage() {
                     <SortAsc className="w-4 h-4 mr-1" />
                     Sort by:
                   </span>
-                  <SortButton sortKey="title">Title</SortButton>
+                  <SortButton sortKey="name">Name</SortButton>
                   <SortButton sortKey="date">Date</SortButton>
                   <SortButton sortKey="type">Type</SortButton>
                 </div>

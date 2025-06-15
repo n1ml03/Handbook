@@ -49,7 +49,6 @@ interface UnifiedItem {
 
 export default function ItemsPage() {
   // State management
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>('EN');
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -64,10 +63,10 @@ export default function ItemsPage() {
   const getItemTranslations = (item: any): any => {
     return {
       EN: { name: item.name, description: item.description || '' },
-      CN: { name: `中文_${item.name}`, description: `中文_${item.description || ''}` },
-      TW: { name: `繁體_${item.name}`, description: `繁體_${item.description || ''}` },
-      KO: { name: `한국_${item.name}`, description: `한국_${item.description || ''}` },
-      JP: { name: `日本_${item.name}`, description: `日本_${item.description || ''}` }
+      CN: { name: `${item.name}`, description: `${item.description || ''}` },
+      TW: { name: `${item.name}`, description: `${item.description || ''}` },
+      KO: { name: `${item.name}`, description: `${item.description || ''}` },
+      JP: { name: `${item.name}`, description: `${item.description || ''}` }
     };
   };
 
