@@ -1,29 +1,30 @@
 Frontend main packages:
-- react
-- react-dom
-- react-router-dom
-- radix-ui
-- tiptap
-- class-variance-authority
-- emoji-picker-react
-- framer-motion
-- lucide-react
-- tailwind-merge
-- zustand
-- tailwindcss (styling)
+- react - Core library for building user interfaces
+- react-dom - DOM bindings for React
+- react-router-dom - Declarative routing for React web apps
+- radix-ui - Primitives for building accessible UI components
+- tiptap - Headless rich-text editor framework for React
+- class-variance-authority - Utility for managing Tailwind CSS class variants
+- emoji-picker-react - Emoji picker component for React
+- framer-motion - Animation and gesture library for React
+- lucide-react - Icon library for React
+- tailwind-merge - Utility to merge Tailwind CSS classes
+- zustand - State management library for React
+- tailwindcss (styling) - Utility-first CSS framework
+- tailwindcss-animate - Tailwind CSS plugin for animation utilities
 
 Backend main packages:
-- express
-- compression
-- cors
-- helmet
-- morgan
-- express-rate-limit
-- mysql2
-- dotenv
-- uuid
-- winston
-- zod
-- pm2 
+- express - Fast, unopinionated web framework for Node.js
+- compression - Middleware to gzip/deflate HTTP responses
+- cors - Middleware to enable Cross-Origin Resource Sharing
+- helmet - Security middleware for HTTP headers
+- morgan - HTTP request logger middleware
+- express-rate-limit - Basic rate-limiting middleware for Express
+- mysql2 - MySQL client for Node.js
+- dotenv - Loads environment variables from .env file
+- uuid - Library to generate unique IDs
+- winston - Versatile logging library
+- zod - TypeScript-first schema validation library
+- pm2 - Production process manager for Node.js
 
-Total packages: 24
+Total packages: 25
