@@ -1,0 +1,29 @@
+Frontend main packages:
+- react
+- react-dom
+- react-router-dom
+- radix-ui
+- tiptap
+- class-variance-authority
+- emoji-picker-react
+- framer-motion
+- lucide-react
+- tailwind-merge
+- zustand
+- tailwindcss (styling)
+
+Backend main packages:
+- express
+- compression
+- cors
+- helmet
+- morgan
+- express-rate-limit
+- mysql2
+- dotenv
+- uuid
+- winston
+- zod
+- pm2 
+
+Total packages: 24
