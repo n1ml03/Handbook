@@ -10,7 +10,6 @@
   "scripts": {
     "dev:frontend": "cd frontend && bun run dev",
     "dev:backend": "cd backend && bun run dev",
-    "dev:full": "concurrently \"bun run dev:backend\" \"bun run dev:frontend\"",
     "build:frontend": "cd frontend && bun run build",
     "build:backend": "cd backend && bun run build",
     "build:all": "bun run build:backend && bun run build:frontend",
@@ -25,16 +24,5 @@
     "lint:all": "bun run lint:frontend && bun run lint:backend"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "bun": ">=1.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "."
-  },
-  "author": "DOAX Handbook Team",
-  "license": "UNLICENSED"
+  }
 }
